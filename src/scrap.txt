@@ -1,4 +1,33 @@
 
+def run1997NxModel():
+    """Runs the modified network model from [AR1997]_"""
+    pass
+
+def run1999Model():
+    """Runs the expanded network model from [RA1999]_"""
+    pass
+
+# Generate plot of Peripheral Diffusion vs. Nx density beyond the core
+# x axis: pties/total possible ties
+# y axis: # peripheral adopters / # periphery nodes
+
+mc = marker_cycle()
+fig = plt.figure()
+ax = fig.add_subplot(111)
+for Ai in experimentCaseLog.keys():
+    # x axis is peripheral density, y axis is the peripheral diffusion
+    x,y = experimentCaseLog[Ai][0], experimentCaseLog[Ai][1]
+    ax.plot(x,y, label="Ambiguity=%d"%Ai, marker=mc.next())
+
+ax.set_xlabel("Network Density Beyond the Core")
+ax.set_ylabel("Peripheral Diffusion")
+ax.legend(loc="best")
+ax.set_title("Extent of Peripheral Diffusion for Varying Ambiguity and "
+            "Network Density\n(Averaged over %d trials)" % trials)
+
+outPlotFilename = "DensityPlot-n%d.png" % (numberOfNodes)
+fig.savefig(pathjoin(outFilePath, outPlotFilename))
+
 :::::::::::::DICorePeriphNxGenerator.next:::::::::::::
 # Determine the number of core nodes, rounded to nearest int
 #core = int(round(n*cpratio))

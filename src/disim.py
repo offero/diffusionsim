@@ -35,18 +35,17 @@ Implementation Details
 """
 
 from __future__ import division
+
 from graphgen import generateARCorePeriph, drawAdoptionNetworkGV
+from plotting import createCoreDiffusionPlot, createPeripheralDiffusionPlot
+
 from random import shuffle, choice, gauss
-from itertools import product, cycle
+from itertools import product
 from os.path import exists, join as pathjoin
-from os import mkdir
+from os import makedirs
 import csv
 from data import Data
-from pylab import plt, rcParams
-
-# Set global matplotlib style parameters
-rcParams['legend.fontsize'] = 10
-rcParams['lines.markersize'] = 3
+from collections import defaultdict
 
 # 1997 model: 3 sets of simulations:
 #  1. Basic model of faddish diffusion
@@ -54,18 +53,15 @@ rcParams['lines.markersize'] = 3
 #     pressure
 #  3. Model based on learning instead of fads
 
-def run1997ThresholdModel(trickleDirection="down"):
+def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
+						outFilePath="/home/prima/Development/tmp/disim/out"):
 	"""Runs the initial threshold model	from [AR1997]_"""
-	# number of nodes in network
-	numberOfNodes = 31
 	# ratio of the number of nodes in the core to nodes in the periphery
 	cpRatio = 1/3
 	numCoreNodes = int(round(numberOfNodes*cpRatio))
 	
-	# set base location for output
-	outFilePath = "/home/prima/Development/tmp/disim/out7"
 	if not exists(outFilePath):
-		mkdir(outFilePath)
+		makedirs(outFilePath)
 	
 	# set `drawNetworkImages` to true to output _ALL_ resulting DOT and PNG files
 	drawNetworkImages = False
@@ -80,8 +76,9 @@ def run1997ThresholdModel(trickleDirection="down"):
 
 	# Keep track of the average diffusion and density of the multiple trials
 	# for each level of ambiguity Ai. Keep this in memory to graph later.
-	# {ai : (avg peripheral diffusion, avg peripheral density), ... }
-	experimentCaseLog = {}
+	# {ai : (avg peripheral diffusion, avg peripheral density, 
+	#        avg core diffusion), ... }
+	experimentCaseLog = defaultdict(lambda: [[],[],[]])
 		
 	# Save trial data to csv too, stream to file
 	# Columns: Ai, avg peripheral diffusion, avg peripheral density,
@@ -101,9 +98,10 @@ def run1997ThresholdModel(trickleDirection="down"):
 					
 	# "We permitted the number of these ties to vary from 0 to 185 in intervals
 	# of 5." ([AR1997]_ pp. 297-298)
-	# IE. peripheryTies_i = xrange(0,185, 5) # Original use by authors
+	# IE. peripheryTies_i = xrange(0,185, 5) # For original use by the authors
 	# Instead, we scale this with the number of peripheral nodes so we can vary
-	# the Network size if we want to.
+	# the Network size if we want to. We will also get the entire density range,
+	# which is more computationaly expensive.
 	peripheryTies_i = xrange(0,int(totalPossiblePeriphTies),5)
 	# TODO: parameterize the interval, currently set static to '5'
 	
@@ -121,10 +119,6 @@ def run1997ThresholdModel(trickleDirection="down"):
 	
 	# A case is a combination of the number
 	for pties,Ai in cases:
-		if not experimentCaseLog.has_key(Ai):
-			# default lists for experiment log.
-			# peripheral diffusion, peripheral density, core diffusion
-			experimentCaseLog[Ai] = ([],[],[])
 		
 		peripheralDiffusion = Data()
 		peripheralDensity = Data()
@@ -231,51 +225,113 @@ def run1997ThresholdModel(trickleDirection="down"):
 									peripheralDiffusion.average,
 									coreDiffusion.average))
 	
-	expTrialLogFileP.close()
 	expCaseLogOutfileP.close()
+	expTrialLogFileP.close()
 	
-	# Generate plot of Peripheral Diffusion vs. Nx density beyond the core
-	# x axis: pties/total possible ties
-	# y axis: # peripheral adopters / # periphery nodes
+	periphDiffPlotTitle = "Extent of Peripheral Diffusion for Varying Ambiguity"\
+				" and Network Density\n(Averaged over %d trials)" % trials
+	createPeripheralDiffusionPlot(experimentCaseLog, outFilePath, 
+								periphDiffPlotTitle)
 	
-	mc = marker_cycle()
-	fig = plt.figure()
-	ax = fig.add_subplot(111)
-	for Ai in experimentCaseLog.keys():
-		# x axis is peripheral density, y axis is the peripheral diffusion
-		x,y = experimentCaseLog[Ai][0], experimentCaseLog[Ai][1]
-		ax.plot(x,y, label="Ambiguity=%d"%Ai, marker=mc.next())
-	
-	ax.set_xlabel("Network Density Beyond the Core")
-	ax.set_ylabel("Peripheral Diffusion")
-	ax.legend(loc="best")
-	ax.set_title("Extent of Peripheral Diffusion for Varying Ambiguity and "
-				"Network Density\n(Averaged over %d trials)" % trials)
-	
-	outPlotFilename = "DensityPlot-n%d.png" % (numberOfNodes)
-	fig.savefig(pathjoin(outFilePath, outPlotFilename))
+	coreDiffPlotTitle = "Extent of Core Diffusion for Varying Ambiguity"\
+				" and Network Density\n(Averaged over %d trials)" % trials
+	createCoreDiffusionPlot(experimentCaseLog, outFilePath, 
+								coreDiffPlotTitle)
 	
 
-def run1997NxModel():
-	"""Runs the modified network model from [AR1997]_"""
-	pass
-
-def run1999Model():
-	"""Runs the expanded network model from [RA1999]_"""
-	pass
-
-def marker_cycle():
-	""" Return an infinite, cycling iterator over the available marker 
-	symbols.
+def loadCaseLog(expCaseLogOutfilePath):
+	"""Regenerate experiment case log structure from output log file."""
 	
-	This is wrapped in a function to make sure that you get a new iterator
-	that starts at the beginning every time you request one. This function is
-	meant for use with Matplotlib.
+	# load data from output file
+	expCaseLogOutfileP = file(expCaseLogOutfilePath, "r+")
+	expCaseLogCSV = csv.reader(expCaseLogOutfileP)
+	# Columns: Ai, avg peripheral diffusion, avg peripheral density,
+	# avg core diffusion 
+	
+	experimentCaseLog = defaultdict(lambda: [[],[],[]])
+	
+	for Ai, pdiff, pdens, cdiff in expCaseLogCSV:		
+		experimentCaseLog[Ai][0].append(pdiff)
+		experimentCaseLog[Ai][1].append(pdens)
+		experimentCaseLog[Ai][2].append(cdiff)
+	
+	return experimentCaseLog
+
+
+
+from optparse import OptionParser, make_option
+from sys import argv
+
+def parseCommandLine():
 	"""
-	return cycle([
-        'o','^','s','D','p','d','+','x','1','2','3','4','h',
-        'H','|','_','v','<','>'])
+	Available commands:
+		simulate 
+			-d, --direction=up/down/both
+			-n, --nodes=<integer>
+			-dots, --output-dot-files
+			-pngs, --output-png-files
+		plotstats 
+			-i, --input-file=caseLogFile.csv
+		plotnetwork 
+			-i, --input-file=dotfile.dot
+	
+	Global options:
+		Output directory: -o --output-dir
+	
+	"""
+	
+	command = argv[1]
+	assert(command in ("simulate", "plotstats", "plotnetwork"))
+	
+	optlist=[
+		# for simulate:
+    	make_option("-d", "--direction", type="choice", 
+					choices=("up","down","both"), dest="direction",
+					default="down",
+                 	help="Diffusion direction, either 'up' or 'down'."),
+		make_option("-n", "--nodes", type="int", dest="numberOfNodes", 
+					default=31,
+					help="Output to directory. Default is the current working"\
+						 " directory."),
+		make_option("-dots", "--output-dot-files", action="store_true",
+					dest="dots", default=False, 
+					help="Output networks as .dot files for Graphviz"),
+		make_option("-pngs", "--output-png-files", action="store_true",
+					dest="pngs", default=False, 
+					help="Generate Graphviz visualization of networks."),
+		# for plotstats and plotnetwork
+		make_option("-i", "--input-file", type="string", dest="inputFile", 
+					help="Input file."),
+		# for all
+    	make_option("-o", "--output-dir", type="string", dest="outputDir", 
+					default=".",
+					help="Output to directory. Default is the current working"\
+						 " directory."),		
+	]
+	parser = OptionParser(option_list=optlist)
+	
+	(options, args) = parser.parse_args()
+	
+	if command == "simulate":		
+		trickleDirections = [options.direction,]
+		if options.direction == "both":
+			trickleDirections=["up","down"]
+			
+		for td in trickleDirections:
+			run1997ThresholdModel(trickleDirection=td, 
+					outFilePath=options.outputDir+"Trickle-%s-Simulation"%td)
+	
+	if command == "plotstats":
+		experimentCaseLog = loadCaseLog(options.inputFile)
+		createPeripheralDiffusionPlot(experimentCaseLog, options.outputDir)
+		createCoreDiffusionPlot(experimentCaseLog, options.outputDir)
+	
+	if command == "plotnetwork":
+		# TODO: Implement network plot
+		pass
+
 
 if __name__ == "__main__":
-	run1997ThresholdModel()
+	parseCommandLine()
+
 
