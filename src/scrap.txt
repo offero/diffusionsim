@@ -1,0 +1,421 @@
+
+:::::::::::::DICorePeriphNxGenerator.next:::::::::::::
+# Determine the number of core nodes, rounded to nearest int
+#core = int(round(n*cpratio))
+coreNodes = range(self.numCoreNodes)
+periphNodes = range(self.numCoreNodes+1, self.n)
+
+# Construct initial core network 
+#G = generators.complete_graph(core)
+# manually generate complete multigraph
+G = nx.empty_graph(self.numCoreNodes, create_using=nx.MultiGraph())
+G.add_edges_from( combinations(coreNodes,2) )
+for a in G.nodes():
+    G.node[a]['core']=True
+
+G.add_nodes_from([(pn,{'core':False}) for pn in periphNodes])
+G.name="random core-periphery(%s)"%(self.n)
+
+# iterator for all periph to core edges
+pcedges = dissimilarProduct(periphNodes, coreNodes)
+# iterator for all periph to periph edges
+ppedges = dissimilarProduct(periphNodes, periphNodes)
+
+allPotentialEdges = chain(pcedges, ppedges)
+    #sampEdges = sample(tuple(pcedges), pcties)
+    #sampEdges.extend(sample(tuple(ppedges), ppties))
+
+# random sampling of edges to add
+sampEdges = sample(tuple(allPotentialEdges), self.pties)
+
+# add extra non-core (peripheral) edges to the network
+G.add_edges_from(sampEdges)
+
+return G
+
+
+
+class RandomAmbiguity():    
+    def __init__(self,choices):
+        self.choices = choices
+    
+    def __call__(self):
+        return choice(self.choices)
+
+class RotatingAmbiguity():
+    def __init__(self,choices):
+        self.choices = cycle(choices)
+    
+    def __call__(self):
+        return self.choices.next()
+
+class ConstantAmbiguity():  
+    def __init__(self, Ai):
+        self.Ai = Ai
+    
+    def __call__(self):
+        return self.Ai
+    
+# Experiment parameters
+# network generator, network size, trickle down/up (seed # & placement), # trials, 
+# output file location, experiment set title, ambiguity varying fn
+# 
+
+class FadDiffusionSimulation(object):
+    
+    def __init__(self, G, outFilePath, trials, numberOfNodes=31,
+                outputNxImages=False):
+        
+        self.outFilePath = outFilePath
+        if not exists(outFilePath):
+            mkdir(outFilePath)
+        
+        self.outputNxImages = outputNxImages
+        self.numberOfNodes = numberOfNodes
+        self.trials = trials
+        self.G = G
+
+    def setup(self):
+        
+        # ratio of the number of nodes in the core to nodes in the periphery
+        cpRatio = 1/3
+        numCoreNodes = int(round(self.numberOfNodes*cpRatio))
+        numPeriphNodes = self.numberOfNodes - numCoreNodes
+        
+        self.networkGenerator = DICorePeriphNxGenerator(numCoreNodes, 
+                                                    numPeriphNodes)
+        self.numberOfNodes = self.networkGenerator.n
+        
+        # Record the results of every trial as a record in a CSV file 
+        # Fields/columns (ordered): 
+        #   # periphery ties, Ai, trial #, # core adopters, total # core nodes, 
+        #   # periph adopters, total # periph nodes
+        self.expTrialLogOutfile = "experimentTrialLog-n%d.csv" % self.numberOfNodes
+        
+        # Keep track of the average diffusion and density of the multiple trials
+        # for each level of ambiguity Ai. Keep this in memory to graph later.
+        # {ai : (avg peripheral diffusion, avg peripheral density), ... }
+        self.experimentCaseLog = {}
+            
+        # Save trial data to csv too, stream to file
+        # Columns: Ai, avg peripheral diffusion, avg peripheral density,
+        # avg core diffusion 
+        expCaseLogOutfile = "experimentCaseLog-n%d.csv" % self.numberOfNodes
+        expCaseLogOutfileP = file(pathjoin(self.outFilePath,
+                                        expCaseLogOutfile), "w")
+        expCaseLogCSV = csv.writer(expCaseLogOutfileP)
+        
+        # total undirected simple edges = (n*(n-1))/2
+        # total peripheral ties = ties between periphery, 
+        # and ties between periph and core
+        # == total graph ties - total ties between core only 
+        # totalPossiblePeriphTies = (len(periphNodes)*(len(periphNodes)-1))/2
+        self.totalPossibleTies = (self.numberOfNodes*(self.numberOfNodes-1))/2
+        self.totalPossibleCoreTies = (numCoreNodes*(numCoreNodes-1))/2
+        self.totalPossiblePeriphTies = self.totalPossibleTies - self.totalPossibleCoreTies
+    
+    
+    def runSimulation(self):
+        
+        expTrialLogFileP = file(pathjoin(self.outFilePath,
+                                        self.expTrialLogOutfile), "w")
+        expTrialLogCSV = csv.writer(expTrialLogFileP)
+        
+        peripheralDiffusion = Data()
+        peripheralDensity = Data()
+        coreDiffusion = Data()
+        
+        numCoreNodes = self.networkGenerator.numCoreNodes
+        pties = self.networkGenerator.pties
+        
+        # Generate a new network for each case
+        Gorig = generateARCorePeriph(numCoreNodes,
+                                self.numberOfNodes-numCoreNodes, pties)
+        trial = 1
+        while trial<=self.trials:
+            # make a copy of the generated graph b/c the simulation modifies 
+            # the graph
+            G = Gorig.copy()
+            # "Assessed profits were drawn randomly from a normal distribution
+            # with mean -1.0 and standard deviation 1.0" ([AR1997]_ p. 298)
+            mu,sigma = -1.0,1.0
+            
+            # set the assessed profit for each node from normal distribution, I_i,
+            # and the weight of bandwagon pressure, A_i.
+            for a in G.nodes():
+                G.node[a]['I'] = gauss(mu,sigma)
+                G.node[a]['A'] = Ai
+                G.node[a]['adopted'] = False
+                G.node[a]['influence'] = []
+                
+            coreNodes = [a for a in G.nodes() if G.node[a]['core']]
+            # select a random core node for trickle-down diffusion
+            seedNode = choice(coreNodes)
+            G.node[seedNode]['adopted'] = True
+            
+            # start simulation
+            while True:
+                # we only need to evaluate agents that have not yet adopted
+                agents = [n for n in G.nodes() if not G.node[n]['adopted']]
+                
+                # TODO: Option for simultaneous updating vs incremental.
+                # Make a temp copy of the graph here, so that we have a
+                # snapshot of the last round. Then, when complete, replace the 
+                # simulation graph with the newly updated graph.
+                # This would simulate simultaneous updating, instead of  
+                # incremental.
+                
+                # Uniform random agent activation
+                # TODO: Find out how activation occurred in the AR1997 model.
+                shuffle(agents)
+                madeChange = False
+                for a in agents:
+                    # will agent a adopt?
+                    # compute B_i,k = I_i + (A_i * P_k-1)
+                    neighbors = G.neighbors(a)
+                    adoptedNeighbors = [n for n in neighbors \
+                                        if G.node[n]['adopted'] == True]
+                    # In the 1997 fad model, Pk1 is the number of neighbor  
+                    # adopters divided by the total number of agents in the  
+                    # network (potential adopters)
+                    Pk1 = len(adoptedNeighbors)/G.number_of_nodes()
+                    Bik = G.node[a]['I'] + (Ai * Pk1)
+                    if Bik > 0:
+                        # Adopt if Bik was assessed > 0
+                        G.node[a]['adopted'] = True
+                        G.node[a]['influence'] = adoptedNeighbors
+                        madeChange = True
+                
+                # stop after no more agents can be influenced by bandwagon
+                if not madeChange: 
+                    break
+            
+            if self.outputNxImages:
+                # save resulting graph image to file
+                outImgFilename = "n%d-PTies%d-Ai%d-Trial%d" % (self.numberOfNodes, 
+                                                            pties, Ai, trial)
+                drawAdoptionNetworkGV(G, 
+                    writeFile=pathjoin(self.outFilePath, outImgFilename+".dot"),
+                    writePng=pathjoin(self.outFilePath, outImgFilename+".png"))
+            
+            # compute adopters in focal and non-focal strata
+            numCoreAdopters = len([a for a in coreNodes 
+                                    if G.node[a]['adopted']])
+            periphNodes = [a for a in G.nodes() if not G.node[a]['core']]
+            numPeriphAdopters = len([a for a in periphNodes  
+                                    if G.node[a]['adopted']])
+            # record experiment results
+            expTrialLogCSV.writerow([pties, Ai, trial, numCoreAdopters, 
+                                    len(coreNodes), numPeriphAdopters, 
+                                    len(periphNodes)])
+            
+            peripheralDiffusion.addDatum(numPeriphAdopters/len(periphNodes))
+            peripheralDensity.addDatum(pties/self.totalPossiblePeriphTies)
+            coreDiffusion.addDatum(numCoreAdopters/len(coreNodes))
+            trial += 1
+        
+        
+        
+        
+def newRun1997FadModel():
+    
+    # set base location for output
+    outFilePath = "/home/prima/Development/tmp/disim/out7"
+    
+    # "We permitted the number of these ties to vary from 0 to 185 in intervals
+    # of 5." ([AR1997]_ pp. 297-298)
+    # IE. peripheryTies_i = xrange(0,185, 5) # Original use by authors
+    # Instead, we scale this with the number of peripheral nodes so we can vary
+    # the Network size if we want to.
+    peripheryTies_i = xrange(0,int(totalPossiblePeriphTies),5)
+    # TODO: parameterize the interval, currently set static to '5'
+    
+    # "In this first simulation, A_i was fixed to the same value for all
+    # firms, but this value was permitted to vary between 1 and 5 in
+    # intervals of 1." ([AR1997]_ p. 298)   
+    A_i = xrange(1,6)   # [1, 2, 3, 4, 5]
+    
+    # generate all combinations of the # of ties and Ai for experimentation
+    cases = product(peripheryTies_i, A_i)
+    
+    # "For each case, we ran 100 trials and calculated the average number of 
+    # adopters in the focal and non-focal strata" ([AR1997]_ p. 298)
+    trials = 100
+    
+    # A case is a combination of the number
+    for pties,Ai in cases:
+        if not experimentCaseLog.has_key(Ai):
+            experimentCaseLog[Ai] = ([],[])
+    
+    sim = FadDiffusionSimulation(outFilePath)
+
+
+
+:param integer n: The number of nodes in the network
+    :param integer ppties: The number of ties to make among the nodes in the 
+                           periphery. Defaults to the count of the nodes in the 
+                           periphery.
+    :param integer pcties: The number of ties between the periphery and core.
+                           Defaults to the count of the nodes in the periphery.
+    :param cpratio: Ratio of the number of core nodes to periphery nodes. 
+                    Defaults to 1/3, meaning for each core node, 2 periphery 
+                    nodes.
+
+
+class Agent(object):
+    """ Simple object to hold state and common methods to agents."""
+
+    def __init__(self, i=0, a=0):
+        # individual assessment of innovation's profitability
+        # var Ii from adoption threshold model
+        # if this number is positive, then adopt (profitable)
+        self.I = i
+        # Influence (weight) of bandwagon pressure.
+        self.A = a
+
+from graphgen:
+
+def generateARCorePeriphRatio(numCoreNodes, numPeriphNodes, pties,
+                              maxpp, maxpc, 
+                              tieRatio=1/2, **kwargs):
+    """Calls :func:`~generateARCorePeriph`, but divides up the number of 
+    periphery-periphery ties and periphery-core ties. Mainly used as a helper 
+    function.
+    
+    TODO: Fix these docstrings
+    
+    :param integer n: The number of nodes in the network
+    :param integer pties: The number of ties to make among the periphery
+    :param float tieRatio: The ratio of periphery-periphery ties to 
+                           periphery-core ties. Defaults to 1/2, meaning for 
+                           each p-p tie, 1 p-c tie.
+    """
+    #assert(0<=tieRatio<=1)
+    
+    # how many periph to periph ties
+    ppties = int(pties * (maxpp/maxpc) * tieRatio)
+    # how many periph to core ties
+    #pcties = int(pties * (maxpc/maxpp) * 1-tieRatio)
+    
+    #ppties = int(floor(pties*tieRatio)) 
+    pcties = int(pties - ppties)
+    
+    #return generateARCorePeriph(n, ppties=ppties, pcties=pcties, **kwargs)
+    return generateARCorePeriph(numCoreNodes, numPeriphNodes, ppties=ppties, 
+                                pcties=pcties, **kwargs)
+
+
+
+#def generateARCorePeriph(numCoreNodes, numPeriphNodes, ppties, pcties, show=False,
+#                         seed=None):
+#def generateARCorePeriph(n, ppties=None, pcties=None, cpratio=1/3, show=False, 
+#                         seed=None):
+    #if ppties == None:
+    #    ppties = len(periphNodes)        
+    #if pcties == None:
+    #    pcties = len(periphNodes)
+
+#influenceEdges = []
+
+#influenceEdges.append((ni, node))
+
+adoptedNodes = [node for node in gvGraph.nodes() \
+                    if node.attr['adopted'] == True]
+   
+#adoptedGraph = gvGraph.add_subgraph(adoptedNodes, "infoFlow")
+    #adoptedGraph.edge_attr['dir']='forward'
+    #adoptedGraph.edge_attr['color']="#1E90FF8F"
+    #adoptedGraph.edge_attr['penwidth']="4"
+
+for fro,to in influenceEdges:
+        gvGraph.add_edge(fro, to, 
+                              weight="1",
+                              dir="forward", 
+                              color="#1E90FFAF", 
+                              penwidth="4")
+
+
+
+# inc complexity causes dec mean
+# inc turbulance causes inc stddev
+
+#G.node[a]['agent'] = Agent(i=random.gauss(mu,sigma))
+
+    # diffusion algorithm
+    # apply activation strategy to nodes (generator)
+    # loop through each node given by activator
+    #   "already adopted" activation only has nodes that have adopted?
+    # if the node had adopted, it can pass knowledge to its neighbors
+    # for each agent that has not adopted
+    #     for each neighbor ni of agent a
+    #         adjust adoption evaluation of a based on whether ni has adopted,
+    #         and whether ni is profitable because of innovations
+    #     a adopts if assessment is >= adoption threshold
+
+#G.add_nodes_from(range(n))
+
+# Attach periphery nodes to core 
+#    for pn in periphNodes:
+#        numTies = pcties/n        
+#        for cn in randomSort(coreNodes):
+#            if numTies >= 1:
+#                G.add_edge(pn, cn)
+#            else: 
+#                if random.random() <= numTies:
+#                    G.add_edge(pn, cn)
+#                
+#            numTies -= 1
+#            if numTies <= 0:
+#                break
+#    
+
+     # Attach each periphery node to at least 1 core node
+#    for pn in periphNodes:
+#        cn = random.choice(coreNodes)
+#        G.add_edge(pn,cn)
+
+
+
+#if s==None:
+    #    s = ceil(log(n))
+
+    # Attach a second periphery to core with s/len(pn) probability
+#    for pn in periphNodes:
+#        if random.random() < (s/len(periphNodes)):
+#            while True:
+#                cn = random.choice(coreNodes)
+#                if not G.has_edge(pn,cn):
+#                    G.add_edge(pn, cn)
+#                    break
+#        # Attach a second periphery to core with s/len(pn) probability
+#        if random.random() < (s/len(periphNodes)):
+#            while True:
+#                pn2 = random.choice(periphNodes)
+#                if not pn == pn2 and not G.has_edge(pn,pn2):
+#                    G.add_edge(pn,pn2)
+#                    break
+
+
+#edges = combinations(range(n), 2)
+
+#    for edge in edges:
+#        a,b = edge
+#        if (G.node[a]['p'] * G.node[b]['p']) > (float(s)/float(n)):
+#            G.add_edge(a,b)
+
+    #for thisnode in G.nodes():
+    #    G.node[thisnode]['p'] = random.uniform(0,1)
+
+    #corePeriphEdges = product(coreNodes, periphNodes)
+    #for edge in corePeriphEdges:
+    #    cn,pn = edge
+
+    #    if random.random() > (float(1)/float(len(periphNodes))):
+        #if G.node[cn]['p'] * G.node[pn]['p'] < (float(1)/float(len(periphNodes))):
+    #        break
+
+
+
+# prob of connecting fn of who is connecting
+# each node has a p such that p1*p2 > thresh will result in connect
+
