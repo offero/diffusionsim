@@ -4,20 +4,20 @@ Module to generate graph structures.
 
 :Author: Christopher Kirkos
 
-Implementation Details
-----------------------
+Implementation
+--------------
 """
 
 from __future__ import division
+
+import random
 from random import sample
 import networkx as nx
-#from networkx import generators
 from itertools import combinations, chain
 import pylab
 from pylab import plt
-from math import floor
-#from os.path import exists, dirname, abspath
-
+from warnings import filterwarnings
+from exceptions import RuntimeWarning
 
 class DINetworkGenerator(object):
     """Abstract base class for DISim network generators. These objects
@@ -70,7 +70,6 @@ class DICorePeriphNxGenerator(DINetworkGenerator):
         
         # customize random number generator seed value if desired
         if not seed is None:
-            import random
             random.seed(seed)
         
     def next(self):
@@ -115,7 +114,7 @@ def generateARCorePeriph(numCoreNodes, numPeriphNodes, pties, show=False):
     # Determine the number of core nodes, rounded to nearest int
     #core = int(round(n*cpratio))
     coreNodes = range(numCoreNodes)
-    periphNodes = range(numCoreNodes+1, n)
+    periphNodes = range(numCoreNodes, n)
     
     # Construct initial core network 
     #G = generators.complete_graph(core)
@@ -149,7 +148,6 @@ def generateARCorePeriph(numCoreNodes, numPeriphNodes, pties, show=False):
 
     return G
 
-
 def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     """Generates the GraphViz adoption network. Optionally writes the output
     to DOT and/or PNG files.
@@ -167,8 +165,14 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
                                   represent information/influence flow visually.
     :param string writeDot: The filename/path to which to save the DOT file.
     :param String writePng: The filename/path to which to save the PNG file.
-    :return AGraph: PyGraphviz AGraph object augmented with style attributes.
+    :return: pygraphviz.AGraph object augmented with style attributes.
     """
+    
+    # pygraphviz calls the graphviz subprocess and issues a warning from its
+    # output about node size. This output kills the console.
+    filterwarnings(action="ignore", category=RuntimeWarning, 
+                            module="agraph")
+    
     colorAdopted = "dodgerblue"
     colorNonAdopted = "firebrick1"
     

@@ -19,3 +19,10 @@ Graph Generation Module
     :undoc-members:
     :inherited-members:
 
+Plotting Module
+=======================
+
+.. automodule:: plotting
+    :members:
+    :undoc-members:
+    :inherited-members:

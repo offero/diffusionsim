@@ -1,3 +1,115 @@
+########### From graphsearch.py ##############
+def findBoundaryPressurePoints(G, proportion=1/2):
+    """    
+    n_a, n_b are the number of nodes in segment a and b, respectively
+    proportion = 1/2
+    count = 0
+    pressurePoints = []
+    for each node a_i in segment A
+        B_a_i is the subset of nodes in segment B that are neighbors of a_i
+        if |B_a_i| >= n_b*proportion # comm. with at least half... 
+            count += 1
+            pressurePoints.append(a_i)
+    
+    
+    
+    """
+    
+    count = 0
+    # Segment 'A' nodes
+    A = [n for n in G.nodes() if G.node[n]['core']]
+    n_a = len(A) # number of nodes in A
+    n_b = G.number_of_nodes() - n_a # number of nodes not in A
+    
+    for a_i in A:
+        # The set of neighbors of a_i not in the same segment
+        B_a_i = [n for n in G.neighbors(a_i) if not G.node[n]['core']]
+        if len(B_a_i) >= n_b*proportion:
+            count += 1
+    
+    return count
+
+def findBoundaryWeaknesses(G, A_i):
+    """Searches a graph for nodes that match the condition of being a boundary
+    weakness as given by [AR1997]_.
+    
+    
+    Pseudocode
+    Directed, flow from segment A to segment B
+    
+    count = 0
+    weaknesses = [] # list of nodes that are boundary weaknesses
+    for each node a_i in segment A
+        B_a_i is the subset of nodes in segment B that are neighbors of a_i 
+        if exists at least 1 node b_i in B_a_i:
+            calculate constrained B_i,k -> Bc_i,k
+            Bc_i,k = I_i + (A_i * 1/n)
+            if Bc_i,k > 0:
+                #weaknesses.append(a_i)
+                count += 1
+                
+    return count
+    
+    """
+    
+    count = 0
+    # Segment 'A' nodes
+    A = [n for n in G.nodes() if G.node[n]['core']]
+    n_a = len(A) # number of nodes in A
+    n_b = G.number_of_nodes() - n_a # number of nodes not in A
+    
+    for a_i in A:
+        # The set of neighbors of a_i not in the same segment
+        B_a_i = [n for n in G.neighbors(a_i) if not G.node[n]['core']]
+        if len(B_a_i) > 0:            
+            Bc_ik = G.node[a_i]['I'] + (A_i * (1/G.number_of_nodes()))
+            if Bc_ik > 0: 
+                count += 1
+    
+    return count
+
+#########################################
+
+
+
+#from os.path import join as pathjoin
+#pathjoin(tdowndir,"experimentCaseLog-n31.csv")
+
+def runOLSRegression1997caselog(expCaseLogFilePath):
+    """
+    
+    """
+    #with file(expCaseLogFilePath, "r+") as expCaseLogFP:
+    #    expCaseLogCSV = csv.reader(expCaseLogFP)
+    
+    caseLogArray = np.genfromtxt(expCaseLogFilePath, dtype=np.float, 
+                                 delimiter=',')
+    # y is our dependent variable, the number of peripheral adopters
+    # column 1 (0-indexed) is the average peripheral diffusion
+    y = caseLogArray[:,1] 
+    # all other variables are the independent control variables
+    # ambiguity, peripheral density, core diffusion
+    X = np.delete(caseLogArray,1,1)
+    olsRegression = sm.OLS(y,X)
+    olsFit = olsRegression.fit()
+    return olsRegression, olsFit
+
+
+# total undirected simple edges = (n*(n-1))/2
+    # total peripheral ties = ties between periphery, 
+    # and ties between periph and core
+    # == total graph ties - total ties between core only 
+    # totalPossiblePeriphTies = (len(periphNodes)*(len(periphNodes)-1))/2
+    totalPossibleTies = (numberOfNodes*(numberOfNodes-1))/2
+    totalPossibleCoreTies = (numCoreNodes*(numCoreNodes-1))/2
+    totalPossiblePeriphTies = totalPossibleTies - totalPossibleCoreTies
+
+if trickleDirection == "down":
+                # select a random core node for trickle-down diffusion
+                seedNode = choice(coreNodes)
+            else:
+                # select a random peripheral node for trickle-up diffusion
+                seedNode = choice(periphNodes)
 
 def run1997NxModel():
     """Runs the modified network model from [AR1997]_"""
@@ -448,3 +560,6 @@ for fro,to in influenceEdges:
 # prob of connecting fn of who is connecting
 # each node has a p such that p1*p2 > thresh will result in connect
 
+#pt = A[:,0] # peripheral ties
+#cn = A[:,4] # core nodes
+#pn = A[:,6] # peripheral nodes   

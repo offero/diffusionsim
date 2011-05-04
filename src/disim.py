@@ -10,34 +10,26 @@ This simulation models the processes discussed by Abrahamson and Rosenkopf in
 :Date: 04/19/2011
 :Version: |release|
 
+.. todo:: 
+	Incorporate reputational variance. Fn of Nx position or random selection
+	(1999 model [RA1999]_)
+	Bi,k = Ii + (A * sum(ri * Di,k-1)) for A >= 0
+	ri = reputation of org i
+	Di,k = 1 if org i has adopted by cycle k; 0 otherwise
 
-Setup Model Procedure
----------------------
+.. todo:: Have global (A) and fixed (Ai) ambiguity experiments ([RA1999]_ p. 367)
+.. todo:: Incorporate profitability assessment (1999 model [RA1999]_)
+.. todo:: Incorporate turbulence (te) and complexity (ce) in environment
 
-Choose turbulence (te) and complexity (ce) for environment
-Choose distribution parameters based on te and ce
-
-TODO List
----------
-
-TODO: Incorporate reputational variance. Fn of Nx position or random selection
-(1999 model [RA1999]_)
-Bi,k = Ii + (A * sum(ri * Di,k-1)) for A >= 0
-ri = reputation of org i
-Di,k = 1 if org i has adopted by cycle k; 0 otherwise
-
-TODO: Have global (A) and fixed (Ai) ambiguity experiments ([RA1999]_ p. 367)
-
-TODO: Incorporate profitability assessment (1999 model [RA1999]_)
-
-Implementation Details
-----------------------
+Implementation
+--------------
 """
 
 from __future__ import division
 
 from graphgen import generateARCorePeriph, drawAdoptionNetworkGV
 from plotting import createCoreDiffusionPlot, createPeripheralDiffusionPlot
+from stats import possibleTies
 
 from random import shuffle, choice, gauss
 from itertools import product
@@ -54,47 +46,63 @@ from collections import defaultdict
 #  3. Model based on learning instead of fads
 
 def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
-						outFilePath="/home/prima/Development/tmp/disim/out"):
-	"""Runs the initial threshold model	from [AR1997]_"""
-	# ratio of the number of nodes in the core to nodes in the periphery
-	cpRatio = 1/3
+						trials=100, cpRatio=1/3,
+						outFilePath="/home/prima/Development/tmp/disim/out",
+						dots=False, pngs=False):
+	"""Runs the initial threshold model	from [AR1997]_
+	
+	:param string trickleDirection: The direction of trickle simulation. This
+									decides whether the seed adopter is in the
+									core or periphery for the simulation.
+	:param integer numberOfNodes: The number of nodes in the generated network.
+	:param integer trials: The number of trials to run for each unique set of 
+						   parameters (Periphery ties, Ai).
+	:param float cpRatio: Ratio of the number of nodes in the core to nodes 
+						  in the periphery.
+	:param string outFilePath: The path where output files and sub-directories 
+							   are created.
+	:param boolean dots: Whether to output DOT files of the influence networks.
+	:param boolean pngs: Whether to output PNG files of the influence networks.
+	
+	.. note::
+		"For each case, we ran 100 trials and calculated the average number of 
+		adopters in the focal and non-focal strata" ([AR1997]_ p. 298)		
+	"""
+	# Determine number of core nodes 
 	numCoreNodes = int(round(numberOfNodes*cpRatio))
 	
 	if not exists(outFilePath):
 		makedirs(outFilePath)
 	
-	# set `drawNetworkImages` to true to output _ALL_ resulting DOT and PNG files
-	drawNetworkImages = False
-	
+	# ***** The Experiment Trial Log *****
 	# Record the results of every trial as a record in a CSV file 
 	# Fields/columns (ordered): 
-	#   # periphery ties, Ai, trial #, # core adopters, total # core nodes, 
-	#   # periph adopters, total # periph nodes
+	# (0) # periphery ties, (1) Ai, (2) trial #, (3) # core adopters, 
+	# (4) total # core nodes, (5) # periph adopters, (6) total # periph nodes
+	# 
 	expTrialLogOutfile = "experimentTrialLog-n%d.csv" % numberOfNodes
 	expTrialLogFileP = file(pathjoin(outFilePath,expTrialLogOutfile), "w")
 	expTrialLogCSV = csv.writer(expTrialLogFileP)
+	# ************************************
 
-	# Keep track of the average diffusion and density of the multiple trials
+	# ***** The Experiment Case Log *****
+	# Keeps track of the average diffusion and density of the multiple trials
 	# for each level of ambiguity Ai. Keep this in memory to graph later.
 	# {ai : (avg peripheral diffusion, avg peripheral density, 
 	#        avg core diffusion), ... }
-	experimentCaseLog = defaultdict(lambda: [[],[],[]])
-		
+	experimentCaseLog = defaultdict(lambda: [[],[],[]])		
 	# Save trial data to csv too, stream to file
-	# Columns: Ai, avg peripheral diffusion, avg peripheral density,
-	# avg core diffusion 
+	# Columns: (0) Ai, (1) avg peripheral diffusion, (2) avg peripheral density,
+	# (3) avg core diffusion 
 	expCaseLogOutfile = "experimentCaseLog-n%d.csv" % numberOfNodes
 	expCaseLogOutfileP = file(pathjoin(outFilePath,expCaseLogOutfile), "w")
-	expCaseLogCSV = csv.writer(expCaseLogOutfileP)
+	expCaseLogCSV = csv.writer(expCaseLogOutfileP)	
+	# Note: The Experiment Case Log is primarily used to generate the  
+	# peripheral/core diffusion graphs.	
+	# ************************************
 	
-	# total undirected simple edges = (n*(n-1))/2
-	# total peripheral ties = ties between periphery, 
-	# and ties between periph and core
-	# == total graph ties - total ties between core only 
-	# totalPossiblePeriphTies = (len(periphNodes)*(len(periphNodes)-1))/2
-	totalPossibleTies = (numberOfNodes*(numberOfNodes-1))/2
-	totalPossibleCoreTies = (numCoreNodes*(numCoreNodes-1))/2
-	totalPossiblePeriphTies = totalPossibleTies - totalPossibleCoreTies
+	# For calculating peripheral density
+	totalPossiblePeriphTies = possibleTies(numberOfNodes, numCoreNodes)[2]
 					
 	# "We permitted the number of these ties to vary from 0 to 185 in intervals
 	# of 5." ([AR1997]_ pp. 297-298)
@@ -112,10 +120,6 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 	
 	# generate all combinations of the # of ties and Ai for experimentation
 	cases = product(peripheryTies_i, A_i)
-	
-	# "For each case, we ran 100 trials and calculated the average number of 
-	# adopters in the focal and non-focal strata" ([AR1997]_ p. 298)
-	trials = 100
 	
 	# A case is a combination of the number
 	for pties,Ai in cases:
@@ -136,8 +140,8 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 			# with mean -1.0 and standard deviation 1.0" ([AR1997]_ p. 298)
 			mu,sigma = -1.0,1.0
 			
-			# set the assessed profit for each node from normal distribution, I_i,
-			# and the weight of bandwagon pressure, A_i.
+			# set the assessed profit (I_i) for each node from normal 
+			# distribution, and the weight of bandwagon pressure (A_i).
 			for a in G.nodes():
 				G.node[a]['I'] = gauss(mu,sigma)
 				G.node[a]['A'] = Ai
@@ -147,17 +151,15 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 			coreNodes = [a for a in G.nodes() if G.node[a]['core']]
 			periphNodes = [a for a in G.nodes() if not G.node[a]['core']]
 			
-			if trickleDirection == "down":			
-				# select a random core node for trickle-down diffusion
-				seedNode = choice(coreNodes)
-			else:
-				seedNode = choice(periphNodes)
-			
+			# select a random core node as an adopter for trickle-down 
+			# diffusion or a random peripheral node for trickle-up diffusion
+			seedNode = choice(coreNodes) if trickleDirection == "down" \
+										 else choice(periphNodes)
 			G.node[seedNode]['adopted'] = True
 			
-			# start simulation
+			# Start simulation
 			while True:
-				# we only need to evaluate agents that have not yet adopted
+				# Only evaluate agents that have not yet adopted
 				agents = [n for n in G.nodes() if not G.node[n]['adopted']]
 				
 				# TODO: Option for simultaneous updating vs incremental.
@@ -192,13 +194,17 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 				if not madeChange: 
 					break
 			
-			if drawNetworkImages:
+			if pngs or dots:
 				# save resulting graph image to file
 				outImgFilename = "n%d-PTies%d-Ai%d-Trial%d" % (numberOfNodes, 
 															pties, Ai, trial)
+				writeFileDot = pathjoin(outFilePath, outImgFilename+".dot") \
+								if dots else None
+				writeFilePng = pathjoin(outFilePath, outImgFilename+".png") \
+								if pngs else None
 				drawAdoptionNetworkGV(G, 
-						writeFile=pathjoin(outFilePath, outImgFilename+".dot"),
-						writePng=pathjoin(outFilePath, outImgFilename+".png"))
+									  writeFile=writeFileDot,
+									  writePng=writeFilePng)
 			
 			# compute adopters in focal and non-focal strata
 			numCoreAdopters = len([a for a in coreNodes 
@@ -260,7 +266,7 @@ def loadCaseLog(expCaseLogOutfilePath):
 
 
 from optparse import OptionParser, make_option
-from sys import argv
+#from sys import argv
 
 def parseCommandLine():
 	"""
@@ -268,6 +274,7 @@ def parseCommandLine():
 		simulate 
 			-d, --direction=up/down/both
 			-n, --nodes=<integer>
+			-t, --trials=<integer>
 			-dots, --output-dot-files
 			-pngs, --output-png-files
 		plotstats 
@@ -278,10 +285,12 @@ def parseCommandLine():
 	Global options:
 		Output directory: -o --output-dir
 	
-	"""
 	
-	command = argv[1]
-	assert(command in ("simulate", "plotstats", "plotnetwork"))
+	`simulate` runs the simulation
+	`plotstats` takes a case log file (CSV) and produces a graph file (PNG)
+	`plotnetwork` takes a DOT file and produces a network visualization (PNG)
+	
+	"""
 	
 	optlist=[
 		# for simulate:
@@ -291,12 +300,15 @@ def parseCommandLine():
                  	help="Diffusion direction, either 'up' or 'down'."),
 		make_option("-n", "--nodes", type="int", dest="numberOfNodes", 
 					default=31,
-					help="Output to directory. Default is the current working"\
-						 " directory."),
-		make_option("-dots", "--output-dot-files", action="store_true",
+					help="Number of nodes in network."),
+		make_option("-t", "--trials", type="int", dest="trials", 
+					default=100,
+					help="Number of times to run each network simulation per "\
+					     "set of parameters"),
+		make_option("-D", "--dots", action="store_true",
 					dest="dots", default=False, 
 					help="Output networks as .dot files for Graphviz"),
-		make_option("-pngs", "--output-png-files", action="store_true",
+		make_option("-P", "--pngs", action="store_true",
 					dest="pngs", default=False, 
 					help="Generate Graphviz visualization of networks."),
 		# for plotstats and plotnetwork
@@ -312,14 +324,22 @@ def parseCommandLine():
 	
 	(options, args) = parser.parse_args()
 	
+	assert(len(args)>0 and args[0] in ("simulate", "plotstats", "plotnetwork"))
+	command = args[0]
+	
 	if command == "simulate":		
 		trickleDirections = [options.direction,]
 		if options.direction == "both":
 			trickleDirections=["up","down"]
-			
+		
 		for td in trickleDirections:
+			outputFilePath = pathjoin(options.outputDir,
+									"Trickle-%s-Simulation"%td)
 			run1997ThresholdModel(trickleDirection=td, 
-					outFilePath=options.outputDir+"Trickle-%s-Simulation"%td)
+					numberOfNodes=options.numberOfNodes,
+					trials = options.trials, 
+					outFilePath=outputFilePath,
+					dots=options.dots, pngs=options.pngs)
 	
 	if command == "plotstats":
 		experimentCaseLog = loadCaseLog(options.inputFile)
@@ -327,7 +347,11 @@ def parseCommandLine():
 		createCoreDiffusionPlot(experimentCaseLog, options.outputDir)
 	
 	if command == "plotnetwork":
-		# TODO: Implement network plot
+		# TODO: Implement network plot. If not useful, remove feature.
+		pass
+
+	if command == "regress":
+		# TODO: Implement regression command line options
 		pass
 
 

@@ -1,6 +1,12 @@
 '''
 Created on Apr 29, 2011
+
+Plotting for DISim.
+
+:Author: Christopher Kirkos
 '''
+
+from __future__ import division
 
 from pylab import plt, rcParams
 from os.path import join as pathjoin
