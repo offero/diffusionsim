@@ -45,9 +45,12 @@ Implementation
 
 '''
 
-
+WPP_CACHE = {}
 def findWeaknessesAndPressurePoints(G, A_i, proportion=1/2, 
-                                    targetSegment='core'):
+                                    targetSegment='periphery',
+                                    addGraphAttrs=True,
+                                    ignoreCache=False, 
+                                    clearCache=False):
     """Searches a graph for nodes that match the conditions for boundary
     weaknesses and boundary pressure points as given by [AR1997]_.
     
@@ -61,34 +64,64 @@ def findWeaknessesAndPressurePoints(G, A_i, proportion=1/2,
                              For pressure point calculation.
     :param str targetSegment: The attribute of the Graph `G` that identifies
                               the segment from which to determine weaknesses
-                              and pressure points. 
-    :return tuple: A tuple of 2 values, the first is the number of boundary
-                   weaknesses and the second is the number of boundary 
-                   pressure points.
+                              and pressure points. Specify `periphery` for 
+                              trickle down diffusion and `core` for trickle
+                              up diffusion.
+    :param bool addGraphAttrs: Augments the Graph `G` with node attributes
+                               representing weaknesses and pressure points.
+    :param bool ignoreCache: Cause function to recalculate for the given
+                             Graph `G` and update the cache accordingly.
+    :param bool clearCache: Reset the cache, deleting all existing entries.
+    :return tuple: A tuple of 2 lists, the first list contains the node IDs 
+                   that were identified as being boundary weaknesses, the
+                   second contains node ID's of pressure points.
     
     .. todo:: 
         Generalize segments; expand from just 'core':T/F attributes
         Create a generalized "segment" attribute of which "coreA", "periphA",
         etc. can be values.
     
+    .. todo::
+        See if there's a way to automatically determine graph 'dirtyness' for
+        cache invalidation.
+    
     """
-    countWeaknesses = 0
-    countPPoints = 0
+    # cache the result for multiple calls
+    # WARNING: The results become invalid if the graph's edge configuration
+    # changes!
+    global WPP_CACHE
+    if clearCache:
+        WPP_CACHE.clear()
+    
+    cacheKey = (G,A_i,proportion,targetSegment)
+    if not ignoreCache and cacheKey in WPP_CACHE:
+        return WPP_CACHE[cacheKey]
+    
+    weakNodes=[]
+    pressurePointNodes=[]
     # Segment 'A' nodes (targetSegment)
-    A = [n for n in G.nodes() if G.node[n][targetSegment]]
+    A = [n for n in G.nodes() if targetSegment in G.node[n]['segments']]
     n_a = len(A) # number of nodes in A
     n_b = G.number_of_nodes() - n_a # number of nodes not in A
     
     for a_i in A:
         # The set of neighbors of a_i not in the same segment
-        B_a_i = [n for n in G.neighbors(a_i) if not G.node[n][targetSegment]]        
+        B_a_i = [n for n in G.neighbors(a_i) if targetSegment not in \
+                                                    G.node[n]['segments']]        
         # Detect boundary weakness
         if len(B_a_i) > 0:            
             Bc_ik = G.node[a_i]['I'] + (A_i * (1/G.number_of_nodes()))
             if Bc_ik > 0: 
-                countWeaknesses += 1
+                weakNodes.append(a_i)
+                if addGraphAttrs:
+                    G.node[a_i]['weak']=True
         # Detect pressure point
-        if len(B_a_i) >= n_b*proportion:
-            countPPoints += 1
+        if len(B_a_i) >= n_b * proportion:
+            pressurePointNodes.append(a_i)
+            if addGraphAttrs:
+                    G.node[a_i]['ppoint']=True
     
-    return (countWeaknesses, countPPoints)
+    WPP_CACHE[cacheKey] = (weakNodes, pressurePointNodes)
+    
+    return (weakNodes, pressurePointNodes) 
+

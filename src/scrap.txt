@@ -1,3 +1,31 @@
+########### graphsearch.py ###############
+#countWeaknesses = 0
+#countPPoints = 0
+#countWeaknesses += 1
+#countPPoints += 1
+# (countWeaknesses, countPPoints)
+
+#####################################
+
+# ni is a string from a list, could be '[]', or '[1, 2, 3]'
+        # strip first and last characters, the brackets, from the string 
+        # turn string to list of individual node ids, iterate through list
+        #influenceNodes = node.attr['influence'][1:-1].split(', ')
+        
+
+# add to list of core nodes
+        # bring string representation of list back to a list object
+        # remove [ ] characters, ' marks, & split on ', ' strings into a list
+        #segments = node.attr['segments'][1:-1].replace("'","").split(", ")
+        #if "core" in segments:
+        #    coreNodes.append(node) 
+        
+#edge = gvGraph.get_edge(ni, node)
+            #edge.attr['dir']='forward'
+            #edge.attr['color']="#1E90FF8F"
+            #edge.attr['penwidth']="4"
+
+
 ########### From graphsearch.py ##############
 def findBoundaryPressurePoints(G, proportion=1/2):
     """    

@@ -17,7 +17,9 @@ This simulation models the processes discussed by Abrahamson and Rosenkopf in
 	ri = reputation of org i
 	Di,k = 1 if org i has adopted by cycle k; 0 otherwise
 
-.. todo:: Have global (A) and fixed (Ai) ambiguity experiments ([RA1999]_ p. 367)
+.. todo:: 
+	Have global (A) and fixed (Ai) ambiguity experiments ([RA1999]_ p. 367)
+
 .. todo:: Incorporate profitability assessment (1999 model [RA1999]_)
 .. todo:: Incorporate turbulence (te) and complexity (ce) in environment
 
@@ -30,6 +32,7 @@ from __future__ import division
 from graphgen import generateARCorePeriph, drawAdoptionNetworkGV
 from plotting import createCoreDiffusionPlot, createPeripheralDiffusionPlot
 from stats import possibleTies
+from graphsearch import findWeaknessesAndPressurePoints
 
 from random import shuffle, choice, gauss
 from itertools import product
@@ -45,24 +48,30 @@ from collections import defaultdict
 #     pressure
 #  3. Model based on learning instead of fads
 
+def graphWPPFilter(G, weaknessThresh=1, pressurePointThresh=1):
+	w,pp = findWeaknessesAndPressurePoints(G)
+	if len(w) >= weaknessThresh or len(pp) >= pressurePointThresh:
+		return True
+	return False
+
 def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 						trials=100, cpRatio=1/3,
 						outFilePath="/home/prima/Development/tmp/disim/out",
 						dots=False, pngs=False):
 	"""Runs the initial threshold model	from [AR1997]_
 	
-	:param string trickleDirection: The direction of trickle simulation. This
+	:param str trickleDirection: The direction of trickle simulation. This
 									decides whether the seed adopter is in the
 									core or periphery for the simulation.
-	:param integer numberOfNodes: The number of nodes in the generated network.
-	:param integer trials: The number of trials to run for each unique set of 
+	:param int numberOfNodes: The number of nodes in the generated network.
+	:param int trials: The number of trials to run for each unique set of 
 						   parameters (Periphery ties, Ai).
 	:param float cpRatio: Ratio of the number of nodes in the core to nodes 
 						  in the periphery.
-	:param string outFilePath: The path where output files and sub-directories 
+	:param str outFilePath: The path where output files and sub-directories 
 							   are created.
-	:param boolean dots: Whether to output DOT files of the influence networks.
-	:param boolean pngs: Whether to output PNG files of the influence networks.
+	:param bool dots: Whether to output DOT files of the influence networks.
+	:param bool pngs: Whether to output PNG files of the influence networks.
 	
 	.. note::
 		"For each case, we ran 100 trials and calculated the average number of 
@@ -78,8 +87,8 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 	# Record the results of every trial as a record in a CSV file 
 	# Fields/columns (ordered): 
 	# (0) # periphery ties, (1) Ai, (2) trial #, (3) # core adopters, 
-	# (4) total # core nodes, (5) # periph adopters, (6) total # periph nodes
-	# 
+	# (4) total # core nodes, (5) # periph adopters, (6) total # periph nodes,
+	# (7) # boundary weaknesses, (8) # boundary pressure points
 	expTrialLogOutfile = "experimentTrialLog-n%d.csv" % numberOfNodes
 	expTrialLogFileP = file(pathjoin(outFilePath,expTrialLogOutfile), "w")
 	expTrialLogCSV = csv.writer(expTrialLogFileP)
@@ -148,8 +157,10 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 				G.node[a]['adopted'] = False
 				G.node[a]['influence'] = []
 			
-			coreNodes = [a for a in G.nodes() if G.node[a]['core']]
-			periphNodes = [a for a in G.nodes() if not G.node[a]['core']]
+			coreNodes = [a for a in G.nodes() if 'core' in \
+										G.node[a]['segments']]
+			periphNodes = [a for a in G.nodes() if 'core' not in \
+												G.node[a]['segments']]
 			
 			# select a random core node as an adopter for trickle-down 
 			# diffusion or a random peripheral node for trickle-up diffusion
@@ -194,6 +205,9 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 				if not madeChange: 
 					break
 			
+			# Find the boundary weaknesses and pressure points
+			weaknesses, ppoints = findWeaknessesAndPressurePoints(G)
+			
 			if pngs or dots:
 				# save resulting graph image to file
 				outImgFilename = "n%d-PTies%d-Ai%d-Trial%d" % (numberOfNodes, 
@@ -209,20 +223,19 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 			# compute adopters in focal and non-focal strata
 			numCoreAdopters = len([a for a in coreNodes 
 									if G.node[a]['adopted']])
-			periphNodes = [a for a in G.nodes() if not G.node[a]['core']]
 			numPeriphAdopters = len([a for a in periphNodes  
 									if G.node[a]['adopted']])
 			# record experiment results
 			expTrialLogCSV.writerow([pties, Ai, trial, numCoreAdopters, 
 									len(coreNodes), numPeriphAdopters, 
-									len(periphNodes)])
+									len(periphNodes), len(weaknesses), 
+									len(ppoints)])
 			
 			peripheralDiffusion.addDatum(numPeriphAdopters/len(periphNodes))
 			peripheralDensity.addDatum(pties/totalPossiblePeriphTies)
 			coreDiffusion.addDatum(numCoreAdopters/len(coreNodes))
 			trial += 1
 		
-		# TODO: Save experiment case log to file instead of in-memory only		
 		experimentCaseLog[Ai][0].append(peripheralDensity.average)
 		experimentCaseLog[Ai][1].append(peripheralDiffusion.average)
 		experimentCaseLog[Ai][2].append(coreDiffusion.average)

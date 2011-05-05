@@ -17,8 +17,8 @@ def standardizeCoeff(A, sample=True):
     divide by the standard deviation.
     
     :param numpy.Array A: A numpy array.
-    :param boolean sample: Whether the `Array` `A` represents a sample or population
-                           (True if sample)
+    :param bool sample: Whether the `Array` `A` represents a sample or 
+                           population (True if sample).
     :return numpy.Array: A copy/view of the input Array with values 
                          standardized.
     """
@@ -41,13 +41,17 @@ def minmax(A, newMin=0.0, newMax=1.0):
     mn, mx = np.min(A), np.max(A)
     return (((A-mn)/(mx-mn))*(newMax-newMin))+newMin
 
-def runOLSRegression1997(expTrialLogFilePath, tieLimit=None):
+def runOLSRegression1997(expTrialLogFilePath, tieLimit=None, 
+                         withBoundaryAnalysis=False):
     """Perform Ordinary Least Squares (OLS) regression on the trial output
     data to determine which parameters have the most effect on the extent
     of peripheral diffusion.
     
-    :param string expTrialLogFilePath: The full path to the experiment's trial
+    :param str expTrialLogFilePath: The full path to the experiment's trial
                                        log file.
+    :param boolean withBoundaryAnalysis: Whether or not to include the boundary
+                                         weaknesses and pressure points in the
+                                         multiple regression.
     """
     # 7 Columns (from log file):
     # (0) periphery ties 
@@ -57,6 +61,8 @@ def runOLSRegression1997(expTrialLogFilePath, tieLimit=None):
     # (4) total # core nodes 
     # (5) # periph adopters
     # (6) total # periph nodes
+    # (7) # boundary weaknesses
+    # (8) # boundary pressure points
     
     # Import trial data from CSV file
     trialLogArray = np.genfromtxt(expTrialLogFilePath, dtype=np.float, 
@@ -86,16 +92,21 @@ def runOLSRegression1997(expTrialLogFilePath, tieLimit=None):
     #vCalcPDensity = np.vectorize(calcPerpipheralDensity)    
     #x3 = vCalcPDensity(trialLogArray[:,0], trialLogArray[:,4], 
     #                   trialLogArray[:,6]) # Peripheral density
-
+    
     y,x1,x2,x3 = [standardizeCoeff(a) for a in [y,x1,x2,x3]]
     
+    indep = [x1,x2,x3] # independent variables    
+    if withBoundaryAnalysis:
+        x4 = standardizeCoeff(trialLogArray[:,7]) # weaknesses
+        x5 = standardizeCoeff(trialLogArray[:,8]) # pressure points
+        indep.extend([x4,x5])
+    
     # X represents the independent control variables
-    #   Ambiguity, Core diffusion, Peripheral density    
-    X = np.array([x1,x2,x3], dtype=np.float).transpose()
+    X = np.array(indep, dtype=np.float).transpose()
     
     olsRegression = sm.OLS(y,X)
     olsFit = olsRegression.fit()
-    yp = trialLogArray[:,5]
+    yp = trialLogArray[:,5] # the original dependent variable, y
     stats = (olsFit, (np.mean(yp), np.std(yp), np.min(yp), np.max(yp)))
     return stats
 

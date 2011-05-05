@@ -16,7 +16,7 @@ import networkx as nx
 from itertools import combinations, chain
 import pylab
 from pylab import plt
-from warnings import filterwarnings
+from warnings import filterwarnings, resetwarnings
 from exceptions import RuntimeWarning
 
 class DINetworkGenerator(object):
@@ -26,7 +26,7 @@ class DINetworkGenerator(object):
     def __init__(self, n):
         """Construct the network generator object.
         
-        :param integer n: The number of nodes in the network
+        :param int n: The number of nodes in the network
         """
         self.n = n
 
@@ -54,11 +54,11 @@ class DICorePeriphNxGenerator(DINetworkGenerator):
                  *args, **kwargs):
         """Construct the network generator object.
         
-        :param integer numCoreNodes: The number of nodes in the Core (>0).
-        :param integer numPeriphNodes: The number of nodes in the Periphery (>0).
-        :param integer pties: The number of additional ties to generate in 
+        :param int numCoreNodes: The number of nodes in the Core (>0).
+        :param int numPeriphNodes: The number of nodes in the Periphery (>0).
+        :param int pties: The number of additional ties to generate in 
                               the periphery.
-        :param integer seed: A number to seed the random number generator.
+        :param int seed: A number to seed the random number generator.
                              (Optional)
         """
         assert(numCoreNodes>=0 and numPeriphNodes>=0)        
@@ -91,6 +91,8 @@ def setDefaultNodeAttrs(G):
     for a in G.nodes():
         G.node[a]['adopted'] = False
         G.node[a]['influence'] = []
+        G.node[a]['weak'] = False
+        G.node[a]['ppoint'] = False
 
 
 def generateARCorePeriph(numCoreNodes, numPeriphNodes, pties, show=False):
@@ -101,9 +103,9 @@ def generateARCorePeriph(numCoreNodes, numPeriphNodes, pties, show=False):
     cores ... network density was varied by varying the number of network ties 
     beyond the core"` ([AR1997]_ p. 297).
     
-    :param integer numCoreNodes: The number of nodes in the Core (>0).
-    :param integer numPeriphNodes: The number of nodes in the Periphery (>0).
-    :param integer pties: The number of additional ties to generate in 
+    :param int numCoreNodes: The number of nodes in the Core (>0).
+    :param int numPeriphNodes: The number of nodes in the Periphery (>0).
+    :param int pties: The number of additional ties to generate in 
                           the periphery.
     """
     assert(numCoreNodes>=0 and numPeriphNodes>=0)
@@ -122,9 +124,10 @@ def generateARCorePeriph(numCoreNodes, numPeriphNodes, pties, show=False):
     G = nx.empty_graph(numCoreNodes, create_using=nx.MultiGraph())
     G.add_edges_from( combinations(coreNodes,2) )
     for a in G.nodes():
-        G.node[a]['core']=True
+        G.node[a]['segments']=['core']
+        #G.node[a]['core']=True
 
-    G.add_nodes_from([(pn,{'core':False}) for pn in periphNodes])
+    G.add_nodes_from([(pn,{'segments':['periphery']}) for pn in periphNodes])
     G.name="random core-periphery(%s)"%(n)
 
     # iterator for all periph to core edges
@@ -163,15 +166,18 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
                                   A MultiGraph is needed because this function
                                   augments the graph with additional edges to
                                   represent information/influence flow visually.
-    :param string writeDot: The filename/path to which to save the DOT file.
-    :param String writePng: The filename/path to which to save the PNG file.
+    :param str writeDot: The filename/path to which to save the DOT file.
+    :param str writePng: The filename/path to which to save the PNG file.
     :return: pygraphviz.AGraph object augmented with style attributes.
+    
+    .. todo:: 
+        Highlight weaknesses and pressure points in different colors (and 
+        nodes that are both).
     """
     
     # pygraphviz calls the graphviz subprocess and issues a warning from its
     # output about node size. This output kills the console.
-    filterwarnings(action="ignore", category=RuntimeWarning, 
-                            module="agraph")
+    filterwarnings(action="ignore", category=RuntimeWarning)
     
     colorAdopted = "dodgerblue"
     colorNonAdopted = "firebrick1"
@@ -194,7 +200,16 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     gvGraph.edge_attr['weight']="1"
     gvGraph.edge_attr['color']="gray35"
     
-    coreNodes = []
+    coreNodes = [a for a in G.nodes() if 'core' in G.node[a]['segments']]
+    
+    # creating a cluster subgraph will cause graphviz to group them visually
+    coreGraph = gvGraph.add_subgraph(coreNodes, "clusterCoreNodes")
+    # color nodes of the core a different border
+    for node in coreGraph.nodes():
+        node.attr['color']="yellowgreen"
+    
+    for edge in coreGraph.edges():
+        edge.attr['len']='1.5'
     
     # set custom colors for nodes and edges
     for node in gvGraph.nodes():    
@@ -202,44 +217,22 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
         node.attr['fillcolor'] = colorAdopted \
                                 if node.attr['adopted'] == "True" \
                                 else colorNonAdopted
-        # add to list of core nodes
-        if node.attr['core'] == "True":
-            coreNodes.append(node)
-            
+        
         # set edge color of node influences
-        # ni is a string from a list, could be '[]', or '[1,2,3]'
-        # strip first and last characters, the brackets, from the string 
-        influenceNodes = node.attr['influence'][1:-1]
-        if len(influenceNodes) > 0:
-            # turn string to list of individual node ids, iterate through list
-            # TODO: find a better way, maybe use the original networkx.Graph
-            influenceNodes = influenceNodes.split(', ')
-            for ni in influenceNodes:
-                # node influenced by ni
-                #edge = gvGraph.get_edge(ni, node)
-                #edge.attr['dir']='forward'
-                #edge.attr['color']="#1E90FF8F"
-                #edge.attr['penwidth']="4"
-                gvGraph.add_edge(ni, node, 
-                              weight="1",
-                              dir="forward", 
-                              color="#1E90FFAF", 
-                              penwidth="4")
-    
-    # creating a cluster subgraph will cause graphviz to group them visually
-    coreGraph = gvGraph.add_subgraph(coreNodes, "clusterCoreNodes")
-    # color nodes of the core a different border
-    #coreGraph.node_attr['color']="yellowgreen"
-    for node in coreGraph.nodes():
-        node.attr['color']="yellowgreen"
-    
-    for edge in coreGraph.edges():
-        edge.attr['len']='1.5'
+        for ni in G.node[int(node)]['influence']:
+            # node influenced by ni
+            gvGraph.add_edge(ni, node, 
+                          weight="1",
+                          dir="forward", 
+                          color="#1E90FFAF", 
+                          penwidth="4")
     
     if writeFile != None:
         gvGraph.write(writeFile)
     if writePng != None:
         gvGraph.draw(writePng, 'png', 'neato')
+    
+    resetwarnings()
     
     return gvGraph
 
@@ -252,7 +245,7 @@ def drawAdoptionNetworkMPL(G, fnum=1, show=False, writeFile=None):
     :param networkx.Graph G: Any NetworkX Graph object.
     :param int fnum: The matplotlib figure number. Defaults to 1.
     :param bool show: 
-    :param string writeFile: A filename/path to save the figure image. If not
+    :param str writeFile: A filename/path to save the figure image. If not
                              specified, no output file is written.
     """
     Gclean = G.subgraph([n for n in G.nodes() if n not in nx.isolates(G)])
