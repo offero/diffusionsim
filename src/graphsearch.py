@@ -45,12 +45,76 @@ Implementation
 
 '''
 
+from __future__ import division
+
+class GraphFilter(object):
+    """An abstract base class defining the structure of `GraphFilter` objects.
+    
+    `GraphFilter` objects act as a callable filter for graphs. Their intent is
+    to be used as a way to restrict the output in large simulation to only
+    graphs with properties of interest.
+    
+    The class instance itself is callable (acts like a function)
+    """
+    def __init__(self):
+        pass
+    def __call__(self, G):        
+        raise NotImplementedError("Override this method")
+
+
+class TrueFilter(GraphFilter):
+    def __init__(self, *args, **kwargs):
+        #super(TrueFilter, self).__init__(G)
+        pass
+    def __call__(self, G):
+        return True
+
+
+class FalseFilter(GraphFilter):
+    def __init__(self, *args, **kwargs):
+        #super(TrueFilter, self).__init__(G)
+        pass
+    def __call__(self, G):
+        return False
+
+
+class WPPFilter(GraphFilter):
+    """A `GraphFilter`_ that includes only those graph that have boundary
+    weaknesses or pressure points over a given threshold 
+    (count of # occurrences in graph > specified threshold).  
+    """
+    def __init__(self, weaknessThresh=1, pressurePointThresh=1,
+                 *args, **kwargs):
+        #super(WPPFilter, self).__init__(G)
+        self.weaknessThresh=weaknessThresh
+        self.pressurePointThresh=pressurePointThresh
+        #self.wpp_cache = {}
+        
+    def __call__(self, G):
+        #if not G in self.wpp_cache:
+        #    self.wpp_cache[G] = findWeaknessesAndPressurePoints(G)
+        #w,pp = self.wpp_cache[G]
+        w,pp = findWeaknessesAndPressurePoints(G)
+        
+        if len(w) >= self.weaknessThresh or \
+            len(pp) >= self.pressurePointThresh:
+                return True
+        return False
+
+
+GRAPH_FILTERS = {"all":TrueFilter, "none":FalseFilter,"wpp":WPPFilter}
+
 WPP_CACHE = {}
-def findWeaknessesAndPressurePoints(G, A_i, proportion=1/2, 
+
+def clearWPPCache():
+    "Delete all entries in Weaknesses and Pressure Points Cache."
+    global WPP_CACHE
+    WPP_CACHE.clear()
+
+def findWeaknessesAndPressurePoints(G, proportion=1/2, 
                                     targetSegment='periphery',
                                     addGraphAttrs=True,
-                                    ignoreCache=False, 
-                                    clearCache=False):
+                                    ignoreCache=False):
     """Searches a graph for nodes that match the conditions for boundary
     weaknesses and boundary pressure points as given by [AR1997]_.
     
@@ -71,7 +135,6 @@ def findWeaknessesAndPressurePoints(G, A_i, proportion=1/2,
                                representing weaknesses and pressure points.
     :param bool ignoreCache: Cause function to recalculate for the given
                              Graph `G` and update the cache accordingly.
-    :param bool clearCache: Reset the cache, deleting all existing entries.
     :return tuple: A tuple of 2 lists, the first list contains the node IDs 
                    that were identified as being boundary weaknesses, the
                    second contains node ID's of pressure points.
@@ -90,10 +153,8 @@ def findWeaknessesAndPressurePoints(G, A_i, proportion=1/2,
     # WARNING: The results become invalid if the graph's edge configuration
     # changes!
     global WPP_CACHE
-    if clearCache:
-        WPP_CACHE.clear()
     
-    cacheKey = (G,A_i,proportion,targetSegment)
+    cacheKey = (G,proportion,targetSegment)
     if not ignoreCache and cacheKey in WPP_CACHE:
         return WPP_CACHE[cacheKey]
     
@@ -110,13 +171,15 @@ def findWeaknessesAndPressurePoints(G, A_i, proportion=1/2,
                                                     G.node[n]['segments']]        
         # Detect boundary weakness
         if len(B_a_i) > 0:            
-            Bc_ik = G.node[a_i]['I'] + (A_i * (1/G.number_of_nodes()))
+            Bc_ik = G.node[a_i]['I'] + (G.node[a_i]['A'] * \
+                                        (1/G.number_of_nodes()))
             if Bc_ik > 0: 
                 weakNodes.append(a_i)
                 if addGraphAttrs:
                     G.node[a_i]['weak']=True
         # Detect pressure point
-        if len(B_a_i) >= n_b * proportion:
+        tmp = n_b * proportion
+        if len(B_a_i) >= tmp:
             pressurePointNodes.append(a_i)
             if addGraphAttrs:
                     G.node[a_i]['ppoint']=True

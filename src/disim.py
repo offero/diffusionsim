@@ -32,7 +32,8 @@ from __future__ import division
 from graphgen import generateARCorePeriph, drawAdoptionNetworkGV
 from plotting import createCoreDiffusionPlot, createPeripheralDiffusionPlot
 from stats import possibleTies
-from graphsearch import findWeaknessesAndPressurePoints
+from graphsearch import findWeaknessesAndPressurePoints, GRAPH_FILTERS,\
+						clearWPPCache
 
 from random import shuffle, choice, gauss
 from itertools import product
@@ -48,16 +49,10 @@ from collections import defaultdict
 #     pressure
 #  3. Model based on learning instead of fads
 
-def graphWPPFilter(G, weaknessThresh=1, pressurePointThresh=1):
-	w,pp = findWeaknessesAndPressurePoints(G)
-	if len(w) >= weaknessThresh or len(pp) >= pressurePointThresh:
-		return True
-	return False
-
 def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 						trials=100, cpRatio=1/3,
 						outFilePath="/home/prima/Development/tmp/disim/out",
-						dots=False, pngs=False):
+						dots="none", pngs="none"):
 	"""Runs the initial threshold model	from [AR1997]_
 	
 	:param str trickleDirection: The direction of trickle simulation. This
@@ -70,8 +65,13 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 						  in the periphery.
 	:param str outFilePath: The path where output files and sub-directories 
 							   are created.
-	:param bool dots: Whether to output DOT files of the influence networks.
-	:param bool pngs: Whether to output PNG files of the influence networks.
+	:param str dots: Condition to output DOT files of the influence networks.
+					 Possible values are "all", "wpp", and "none". "all" 
+					 outputs files for each trial, "wpp" for only trials
+					 whose resulting graphs have boundary conditions, and 
+					 "none" for no outut.
+	:param str pngs: Condition to output PNG files of the influence networks
+					 (same values/conditions as *dots* argument).
 	
 	.. note::
 		"For each case, we ran 100 trials and calculated the average number of 
@@ -82,6 +82,9 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 	
 	if not exists(outFilePath):
 		makedirs(outFilePath)
+	
+	dotFilter = GRAPH_FILTERS[dots]()
+	pngFilter = GRAPH_FILTERS[pngs]()
 	
 	# ***** The Experiment Trial Log *****
 	# Record the results of every trial as a record in a CSV file 
@@ -194,7 +197,7 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 					# adopters divided by the total number of agents in the  
 					# network (potential adopters)
 					Pk1 = len(adoptedNeighbors)/G.number_of_nodes()
-					Bik = G.node[a]['I'] + (Ai * Pk1)
+					Bik = G.node[a]['I'] + (G.node[a]['A'] * Pk1)
 					if Bik > 0:
 						# Adopt if Bik was assessed > 0
 						G.node[a]['adopted'] = True
@@ -208,14 +211,14 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 			# Find the boundary weaknesses and pressure points
 			weaknesses, ppoints = findWeaknessesAndPressurePoints(G)
 			
-			if pngs or dots:
+			if pngs != "none" or dots != "none":
 				# save resulting graph image to file
 				outImgFilename = "n%d-PTies%d-Ai%d-Trial%d" % (numberOfNodes, 
 															pties, Ai, trial)
 				writeFileDot = pathjoin(outFilePath, outImgFilename+".dot") \
-								if dots else None
+								if dotFilter(G) else None
 				writeFilePng = pathjoin(outFilePath, outImgFilename+".png") \
-								if pngs else None
+								if pngFilter(G) else None
 				drawAdoptionNetworkGV(G, 
 									  writeFile=writeFileDot,
 									  writePng=writeFilePng)
@@ -234,6 +237,8 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 			peripheralDiffusion.addDatum(numPeriphAdopters/len(periphNodes))
 			peripheralDensity.addDatum(pties/totalPossiblePeriphTies)
 			coreDiffusion.addDatum(numCoreAdopters/len(coreNodes))
+			
+			clearWPPCache() # resources about this graph are no longer needed
 			trial += 1
 		
 		experimentCaseLog[Ai][0].append(peripheralDensity.average)
@@ -288,8 +293,8 @@ def parseCommandLine():
 			-d, --direction=up/down/both
 			-n, --nodes=<integer>
 			-t, --trials=<integer>
-			-dots, --output-dot-files
-			-pngs, --output-png-files
+			-D, --dots=all,wpp
+			-P, --pngs=all,wpp
 		plotstats 
 			-i, --input-file=caseLogFile.csv
 		plotnetwork 
@@ -305,8 +310,10 @@ def parseCommandLine():
 	
 	"""
 	
+	graphOutputChoices = GRAPH_FILTERS.keys() # from graphsearch module
+	
 	optlist=[
-		# for simulate:
+		# for simulate commands:
     	make_option("-d", "--direction", type="choice", 
 					choices=("up","down","both"), dest="direction",
 					default="down",
@@ -318,26 +325,32 @@ def parseCommandLine():
 					default=100,
 					help="Number of times to run each network simulation per "\
 					     "set of parameters"),
-		make_option("-D", "--dots", action="store_true",
-					dest="dots", default=False, 
+		make_option("-D", "--dots", 
+					dest="dots", type="choice", choices=graphOutputChoices,
+					default="none", 
 					help="Output networks as .dot files for Graphviz"),
-		make_option("-P", "--pngs", action="store_true",
-					dest="pngs", default=False, 
+					#action="store_true",
+		make_option("-P", "--pngs",
+					dest="pngs", type="choice", choices=graphOutputChoices,
+					default="none",
 					help="Generate Graphviz visualization of networks."),
-		# for plotstats and plotnetwork
+		# for plotstats and plotnetwork commands:
 		make_option("-i", "--input-file", type="string", dest="inputFile", 
 					help="Input file."),
-		# for all
+		# for all commands:
     	make_option("-o", "--output-dir", type="string", dest="outputDir", 
 					default=".",
-					help="Output to directory. Default is the current working"\
-						 " directory."),		
+					help="Base output directory. Default is the current "\
+						 "working directory."),
 	]
 	parser = OptionParser(option_list=optlist)
 	
 	(options, args) = parser.parse_args()
 	
 	assert(len(args)>0 and args[0] in ("simulate", "plotstats", "plotnetwork"))
+	assert(options.dots in graphOutputChoices and \
+			options.pngs in graphOutputChoices)
+	
 	command = args[0]
 	
 	if command == "simulate":		

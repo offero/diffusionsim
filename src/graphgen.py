@@ -145,6 +145,8 @@ def generateARCorePeriph(numCoreNodes, numPeriphNodes, pties, show=False):
     # add extra non-core (peripheral) edges to the network
     G.add_edges_from(sampEdges)
     
+    setDefaultNodeAttrs(G)
+    
     if show:
         nx.draw(G)
         pylab.show()
@@ -169,15 +171,18 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     :param str writeDot: The filename/path to which to save the DOT file.
     :param str writePng: The filename/path to which to save the PNG file.
     :return: pygraphviz.AGraph object augmented with style attributes.
-    
-    .. todo:: 
-        Highlight weaknesses and pressure points in different colors (and 
-        nodes that are both).
     """
     
     # pygraphviz calls the graphviz subprocess and issues a warning from its
     # output about node size. This output kills the console.
     filterwarnings(action="ignore", category=RuntimeWarning)
+    
+    lightblue = "#CF2731"
+    green = "#41B428"
+    hotpurple = "#CF27CD"
+    yellow = "#CFC627"
+    hotred = "#CF2731"
+    lightgrey = "#A4A4A4"
     
     colorAdopted = "dodgerblue"
     colorNonAdopted = "firebrick1"
@@ -185,7 +190,8 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     # global default graph attributes
     gvGraph = nx.to_agraph(G)
     gvGraph.graph_attr['splines']="true"
-    #gvGraph.graph_attr['size']="6,6!"
+    gvGraph.graph_attr['size']="8,8!"
+    gvGraph.graph_attr['outputorder']="edgesfirst" # draw nodes over edges
     
     # global default node attributes
     gvGraph.node_attr['shape']='circle'
@@ -198,7 +204,7 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     # global default edge attributes
     gvGraph.edge_attr['dir']="none"
     gvGraph.edge_attr['weight']="1"
-    gvGraph.edge_attr['color']="gray35"
+    gvGraph.edge_attr['color']=lightgrey
     
     coreNodes = [a for a in G.nodes() if 'core' in G.node[a]['segments']]
     
@@ -206,7 +212,7 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     coreGraph = gvGraph.add_subgraph(coreNodes, "clusterCoreNodes")
     # color nodes of the core a different border
     for node in coreGraph.nodes():
-        node.attr['color']="yellowgreen"
+        node.attr['label']="*"+node.title()+"*"
     
     for edge in coreGraph.edges():
         edge.attr['len']='1.5'
@@ -227,10 +233,22 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
                           color="#1E90FFAF", 
                           penwidth="4")
     
+        weakTest = G.node[int(node)]['weak']==True
+        ppointTest = G.node[int(node)]['ppoint']==True
+        if weakTest and ppointTest:
+            node.attr['color'] = hotpurple
+            node.attr['penwidth'] = 4
+        elif weakTest:
+            node.attr['color'] = yellow
+            node.attr['penwidth'] = 3
+        elif ppointTest:
+            node.attr['color'] = green
+            node.attr['penwidth'] = 3
+    
     if writeFile != None:
         gvGraph.write(writeFile)
     if writePng != None:
-        gvGraph.draw(writePng, 'png', 'neato')
+        gvGraph.draw(writePng, 'png', 'fdp') #neato twopi
     
     resetwarnings()
     

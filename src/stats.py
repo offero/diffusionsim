@@ -11,6 +11,7 @@ from __future__ import division
 import numpy as np
 import scikits.statsmodels as sm
 import numexpr as ne
+from itertools import product
 
 def standardizeCoeff(A, sample=True):
     """Element-wise, subtract the mean of the values from each value and 
@@ -41,8 +42,28 @@ def minmax(A, newMin=0.0, newMax=1.0):
     mn, mx = np.min(A), np.max(A)
     return (((A-mn)/(mx-mn))*(newMax-newMin))+newMin
 
+def runRegressionCombinations():
+    """
+    
+    .. todo:: Write this function to automate all regression analysis
+    
+    """
+    
+    
+    # Direction, Limit, With/out boundary conditions
+    directions = ("Up","Down")
+    limits = ("Limit19000", "NoLimit")
+    bconds = ("WithoutBoundaryConds", "WithBoundaryConds")
+    
+    conds = product(directions,limits,bconds)
+    
+    
+             
+    
+
 def runOLSRegression1997(expTrialLogFilePath, tieLimit=None, 
-                         withBoundaryAnalysis=False):
+                         withBoundaryAnalysis=False,
+                         outFilePath=None):
     """Perform Ordinary Least Squares (OLS) regression on the trial output
     data to determine which parameters have the most effect on the extent
     of peripheral diffusion.
@@ -95,11 +116,15 @@ def runOLSRegression1997(expTrialLogFilePath, tieLimit=None,
     
     y,x1,x2,x3 = [standardizeCoeff(a) for a in [y,x1,x2,x3]]
     
+    yname = "Peripheral diffusion"
+    xnames = ["Ambiguity", "Core diff", "Periph dens"]
+    
     indep = [x1,x2,x3] # independent variables    
     if withBoundaryAnalysis:
         x4 = standardizeCoeff(trialLogArray[:,7]) # weaknesses
         x5 = standardizeCoeff(trialLogArray[:,8]) # pressure points
         indep.extend([x4,x5])
+        xnames.extend(["Weaknesses", "Press Pnts"])
     
     # X represents the independent control variables
     X = np.array(indep, dtype=np.float).transpose()
@@ -107,8 +132,16 @@ def runOLSRegression1997(expTrialLogFilePath, tieLimit=None,
     olsRegression = sm.OLS(y,X)
     olsFit = olsRegression.fit()
     yp = trialLogArray[:,5] # the original dependent variable, y
-    stats = (olsFit, (np.mean(yp), np.std(yp), np.min(yp), np.max(yp)))
-    return stats
+    regstats = (olsFit, (np.mean(yp), np.std(yp), np.min(yp), np.max(yp)))
+    
+    if outFilePath != None:
+        with file(outFilePath, 'w') as outFileP:
+            outFileP.write("Regression Summary\n")
+            outFileP.write(olsFit.summary(yname=yname, xname=xnames))
+            outFileP.write("\nMean: %f\nStdDev: %f\nMin: %f\nMax: %f\n" % \
+                           (regstats[1]) )
+    
+    return regstats
 
 def possibleTies(numberOfNodes, numCoreNodes):
     """ Calculates the max number of ties for a network with given node 
