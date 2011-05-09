@@ -1,5 +1,20 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python
+#
+# Copyright (C) 2011 Christopher Kirkos. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 r"""
 Diffusion of innovation simulation.
 
@@ -10,19 +25,6 @@ This simulation models the processes discussed by Abrahamson and Rosenkopf in
 :Date: 04/19/2011
 :Version: |release|
 
-.. todo:: 
-	Incorporate reputational variance. Fn of Nx position or random selection
-	(1999 model [RA1999]_)
-	Bi,k = Ii + (A * sum(ri * Di,k-1)) for A >= 0
-	ri = reputation of org i
-	Di,k = 1 if org i has adopted by cycle k; 0 otherwise
-
-.. todo:: 
-	Have global (A) and fixed (Ai) ambiguity experiments ([RA1999]_ p. 367)
-
-.. todo:: Incorporate profitability assessment (1999 model [RA1999]_)
-.. todo:: Incorporate turbulence (te) and complexity (ce) in environment
-
 Implementation
 --------------
 """
@@ -31,7 +33,7 @@ from __future__ import division
 
 from graphgen import generateARCorePeriph, drawAdoptionNetworkGV
 from plotting import createCoreDiffusionPlot, createPeripheralDiffusionPlot
-from stats import possibleTies
+from stats import possibleTies, runOLSRegression1997
 from graphsearch import findWeaknessesAndPressurePoints, GRAPH_FILTERS,\
 						clearWPPCache
 
@@ -252,8 +254,9 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 	expCaseLogOutfileP.close()
 	expTrialLogFileP.close()
 	
-	periphDiffPlotTitle = "Extent of Peripheral Diffusion for Varying Ambiguity"\
-				" and Network Density\n(Averaged over %d trials)" % trials
+	periphDiffPlotTitle = "Extent of Peripheral Diffusion for Varying "\
+				"Ambiguity and Network Density\n(Averaged over %d trials)"\
+				 % trials
 	createPeripheralDiffusionPlot(experimentCaseLog, outFilePath, 
 								periphDiffPlotTitle)
 	
@@ -262,6 +265,31 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 	createCoreDiffusionPlot(experimentCaseLog, outFilePath, 
 								coreDiffPlotTitle)
 	
+	fullRegressionAnalysis(outFilePath, expTrialLogOutfile)
+	
+
+
+def fullRegressionAnalysis(outFilePath, expTrialLogOutfile):
+	"""Perform regression analysis on all the identified combinations of values
+	from the [AR1997]_ paper (With/without boundary conditions, all/high/low
+	network densities, full/limited to 185 peripheral ties).
+	
+	This function should effectively run the necessary regression analyses 
+	to regenerate all analysis tables presented in the paper.
+	"""
+	
+	pTieRanges = (None, (0,185))
+	densityRanges = (None, (0,0.5), (0.5,1))
+	boundaryConds = (True,False)
+	conditionCombos = product(pTieRanges, densityRanges, boundaryConds)
+	
+	for cond in conditionCombos:
+		runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+						peripheralTieRange = cond[0],
+						densityRange = cond[1],
+						withBoundaryAnalysis=cond[2],
+                        outFilePath=outFilePath)
+		
 
 def loadCaseLog(expCaseLogOutfilePath):
 	"""Regenerate experiment case log structure from output log file."""

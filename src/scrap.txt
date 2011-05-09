@@ -1,3 +1,239 @@
+class TestGraphGen(unittest.TestCase):
+
+    def setUp(self):
+        self.nxgen = DICorePeriphNxGenerator(numCoreNodes, \
+                                             numPeriphNodes, pties)
+
+    def tearDown(self):
+        print "tearDown class level"
+
+    def testAttributes(self):
+        print "runTest"
+
+    def testSize(self):
+        print "runTest2"
+
+    
+
+if __name__ == "__main__":
+    #import sys;sys.argv = ['', 'Test.testName']
+    unittest.main()
+
+############# LICENSING ####################
+
+Thinking about GPL...
+
+Copyright (C) 2011 Christopher Kirkos
+All rights reserved.
+Software licensed under GPLv3 with attribution (Section 7b.)
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software Foundation,
+Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+
+Additional Terms for DISim:
+- In accordance with Section 7(b), statements of author attribution must remain  
+in the source and documentation.
+- The licensor reserves the right to relicense the software under any other 
+license, and to diverge and/or modify the software as a closed source version. 
+
+The full GPLv3 text is located in file gpl-3.0.txt and must remain with each 
+distributed copy of this software.
+
+################################################
+
+runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = None,
+                        withBoundaryAnalysis=False,
+                        outFilePath=outFilePath)
+    
+        runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = None,
+                        withBoundaryAnalysis=True,
+                        outFilePath=outFilePath)
+
+        runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0,0.5),
+                        withBoundaryAnalysis=False,
+                        outFilePath=outFilePath)
+    
+        runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0,0.5),
+                        withBoundaryAnalysis=True,
+                        outFilePath=outFilePath)
+
+        runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0.5,1.0),
+                        withBoundaryAnalysis=False,
+                        outFilePath=outFilePath)
+    
+        runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0.5,1.0),
+                        withBoundaryAnalysis=True,
+                        outFilePath=outFilePath)
+
+
+def fullRegressionAnalysis(outFilePath, expTrialLogOutfile):
+    
+    runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = None,
+                        withBoundaryAnalysis=False,
+                        outFilePath=pathjoin(outFilePath, 
+                                            "Regression-"\
+                                            "0To185Pties-"\
+                                            "NoBoundary.txt"))
+    
+    runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = None,
+                        withBoundaryAnalysis=True,
+                        outFilePath=pathjoin(outFilePath, 
+                                            "Regression-"\
+                                            "0To185Pties-"\
+                                            "WithBoundary.txt"))
+
+    runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0,0.5),
+                        withBoundaryAnalysis=False,
+                        outFilePath=pathjoin(outFilePath, 
+                                            "Regression-"\
+                                            "0To185Pties-"\
+                                            "PDensity0To0.5-"\
+                                            "NoBoundary.txt"))
+    
+    runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0,0.5),
+                        withBoundaryAnalysis=True,
+                        outFilePath=pathjoin(outFilePath, 
+                                            "Regression-"\
+                                            "0To185Pties-"\
+                                            "PDensity0To0.5-"\
+                                            "WithBoundary.txt"))
+
+    runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0.5,1.0),
+                        withBoundaryAnalysis=False,
+                        outFilePath=pathjoin(outFilePath, 
+                                            "Regression-"\
+                                            "0To185Pties-"\
+                                            "PDensity0.5To1-"\
+                                            "NoBoundary.txt"))
+    
+    runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0.5,1.0),
+                        withBoundaryAnalysis=True,
+                        outFilePath=pathjoin(outFilePath, 
+                                            "Regression-"\
+                                            "0To185Pties-"\
+                                            "PDensity0.5To1-"\
+                                            "WithBoundary.txt"))
+
+
+############### stats.py ################
+
+def runRegressionCombinations():
+    """
+    
+    .. todo:: Write this function to automate all regression analysis
+    
+    """
+    
+    
+    # Direction, Limit, With/out boundary conditions
+    directions = ("Up","Down")
+    limits = ("Limit19000", "NoLimit")
+    bconds = ("WithoutBoundaryConds", "WithBoundaryConds")
+    
+    conds = product(directions,limits,bconds)
+
+def testReg(outFilePath, expTrialLogOutfile):
+    runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0.4,0.5),
+                        withBoundaryAnalysis=True,
+                        outFilePath=pathjoin(outFilePath, 
+                                            "Regression-"\
+                                            "0To185Pties-"\
+                                            "PDensity0.4To0.5-"\
+                                            "WithBoundary.txt"))
+    
+    runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+                        peripheralTieRange = (0,185),
+                        densityRange = (0,0.2),
+                        withBoundaryAnalysis=True,
+                        outFilePath=pathjoin(outFilePath, 
+                                            "Regression-"\
+                                            "0To185Pties-"\
+                                            "PDensity0To0.2-"\
+                                            "WithBoundary.txt"))
+
+#if tieLimit != None:
+    #    trialLogArray = trialLogArray[:tieLimit]
+
+# numpy only version of calculating peripheral density
+    #vCalcPDensity = np.vectorize(calcPerpipheralDensity)    
+    #x3 = vCalcPDensity(trialLogArray[:,0], trialLogArray[:,4], 
+    #                   trialLogArray[:,6]) # Peripheral density
+
+    #tietest = False in tieMask.mask
+    #denstest = False in densityMask.mask
+    #combtest = False in combinedMaskVals
+    
+
+if peripheralTieRange != None:
+        # select only the entries within specified range
+        # selecting on `trialLogArray[:,0]`, the # peripheral ties
+        f,t = peripheralTieRange
+        tieMask = np.ma.masked_inside(trialLogArray[:,0], f, t) 
+        indep = map(lambda x: x[tieMask.mask], indep)
+        y = y[tieMask.mask]
+        yorig = yorig[tieMask.mask]
+    
+    if densityRange != None:
+        # select only the entries within specified range
+        # selecting on x3 or indep[2], the peripheral density independent variable
+        f,t = densityRange
+        densityMask = np.ma.masked_inside(indep[2], f, t)
+        indep = map(lambda x: x[densityMask.mask], indep)
+        y = y[densityMask.mask]
+        yorig = yorig[densityMask.mask]
+
+yp = trialLogArray[:,5] # the original dependent variable, y
+
+f,t = peripheralTieRange if peripheralTieRange else \
+                                                (np.min(y), np.max(y)) 
+        assert(0<=f<=t<=np.max(y))
+        
+
+# this should be the same thing
+    #ymask = np.ma.masked_outside(y, f, t)
+    #ysub = y[~ymask.mask]
+    
+# y is the dependent variable, peripheral diffusion (adopters/nodes)
+    #y = trialLogArray[:,5]/trialLogArray[:,6]
+    
+
 ########### graphsearch.py ###############
 #countWeaknesses = 0
 #countPPoints = 0

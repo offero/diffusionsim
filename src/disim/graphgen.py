@@ -1,4 +1,19 @@
 # -*- coding: utf-8 -*-
+#
+# Copyright (C) 2011 Christopher Kirkos. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 Module to generate graph structures.
 
@@ -9,6 +24,8 @@ Implementation
 """
 
 from __future__ import division
+
+from stats import possibleTies
 
 import random
 from random import sample
@@ -61,7 +78,14 @@ class DICorePeriphNxGenerator(DINetworkGenerator):
         :param int seed: A number to seed the random number generator.
                              (Optional)
         """
-        assert(numCoreNodes>=0 and numPeriphNodes>=0)        
+        assert(numCoreNodes>=0 and numPeriphNodes>=0 and pties>=0)
+        
+        totNx,totCore,totPeriph = possibleTies(numCoreNodes+numPeriphNodes, 
+                                               numCoreNodes)
+        if pties > totPeriph:
+            raise Exception("Cannot create more ties than possible given"\
+                            "number of nodes.")
+        
         n = numCoreNodes + numPeriphNodes
         super(DICorePeriphNxGenerator, self).__init__(n, *args, **kwargs)
         self.numCoreNodes = numCoreNodes
@@ -99,9 +123,9 @@ def generateARCorePeriph(numCoreNodes, numPeriphNodes, pties, show=False):
     """Generates a core-periphery network like the one discussed in [AR1997]_ 
     using NetworkX [HSS2008]_. 
     
-    `"First set of simulations ... core-perphiphery networks with fully-linked
+    *"First set of simulations ... core-perphiphery networks with fully-linked
     cores ... network density was varied by varying the number of network ties 
-    beyond the core"` ([AR1997]_ p. 297).
+    beyond the core"* ([AR1997]_ p. 297).
     
     :param int numCoreNodes: The number of nodes in the Core (>0).
     :param int numPeriphNodes: The number of nodes in the Periphery (>0).
@@ -177,12 +201,13 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     # output about node size. This output kills the console.
     filterwarnings(action="ignore", category=RuntimeWarning)
     
-    lightblue = "#CF2731"
+    #lightblue = "#CF2731"
     green = "#41B428"
     hotpurple = "#CF27CD"
     yellow = "#CFC627"
-    hotred = "#CF2731"
-    lightgrey = "#A4A4A4"
+    #hotred = "#CF2731"
+    #medgrey = "#A4A4A4"
+    lightgrey = "#BBBBBB"
     
     colorAdopted = "dodgerblue"
     colorNonAdopted = "firebrick1"
@@ -210,9 +235,9 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     
     # creating a cluster subgraph will cause graphviz to group them visually
     coreGraph = gvGraph.add_subgraph(coreNodes, "clusterCoreNodes")
-    # color nodes of the core a different border
-    for node in coreGraph.nodes():
-        node.attr['label']="*"+node.title()+"*"
+    # color nodes of the core a different border (not needed with fdp)
+    #for node in coreGraph.nodes():
+    #    node.attr['label']="*"+node.title()+"*"
     
     for edge in coreGraph.edges():
         edge.attr['len']='1.5'
