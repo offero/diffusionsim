@@ -19,39 +19,6 @@ if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
 
-############# LICENSING ####################
-
-Thinking about GPL...
-
-Copyright (C) 2011 Christopher Kirkos
-All rights reserved.
-Software licensed under GPLv3 with attribution (Section 7b.)
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software Foundation,
-Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-
-Additional Terms for DISim:
-- In accordance with Section 7(b), statements of author attribution must remain  
-in the source and documentation.
-- The licensor reserves the right to relicense the software under any other 
-license, and to diverge and/or modify the software as a closed source version. 
-
-The full GPLv3 text is located in file gpl-3.0.txt and must remain with each 
-distributed copy of this software.
-
-################################################
-
 runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
                         peripheralTieRange = (0,185),
                         densityRange = None,
