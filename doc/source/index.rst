@@ -17,14 +17,28 @@ It's first implementation is a reproduction of Abrahamson and Rosenkopf's
 
 The 1997 model contained 3 sets of simulations:
   1. Basic model of faddish diffusion (bandwagon pressure)
-  2. Relaxes assumption of equal sensitivity to information creating bandwagon pressure
+  2. Relaxes assumption of equal sensitivity to information creating bandwagon 
+     pressure
   3. Model based on learning instead of fads
 
-Presentations
- * `<http://diffusionsim.sourceforge.net/presentation/>`_
+In the :doc:`modules` section, you will find the source code documentation and
+links to stylized source code for easy reference and validation.
 
-Contents
-~~~~~~~~
+Online Resources
+~~~~~~~~~~~~~~~~
+
+* `Simulation 1 Results Presentation 
+  <http://diffusionsim.sourceforge.net/presentation/>`_
+* `Diffusion Network Visualization Image Gallery 
+  <https://sourceforge.net/apps/gallery/diffusionsim/index.php>`_
+* `Source Code Access (git repository) 
+  <https://sourceforge.net/scm/?type=git&group_id=543173>`_
+* `Browseable Source Code Interface 
+  <http://diffusionsim.git.sourceforge.net/>`_ 
+* `DISim SourceForge home <http://sf.net/projects/diffusionsim>`_
+
+Documentation Contents
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. toctree::
    :maxdepth: 2
@@ -32,6 +46,7 @@ Contents
    background
    modules
    references
+   requirements
    todo
    license
 

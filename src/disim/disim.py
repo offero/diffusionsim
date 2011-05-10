@@ -82,11 +82,13 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 	# Determine number of core nodes 
 	numCoreNodes = int(round(numberOfNodes*cpRatio))
 	
+	targetSegment = 'periphery' if trickleDirection=="down" else "core"
+	
 	if not exists(outFilePath):
 		makedirs(outFilePath)
 	
-	dotFilter = GRAPH_FILTERS[dots]()
-	pngFilter = GRAPH_FILTERS[pngs]()
+	dotFilter = GRAPH_FILTERS[dots](targetSegment=targetSegment)
+	pngFilter = GRAPH_FILTERS[pngs](targetSegment=targetSegment)
 	
 	# ***** The Experiment Trial Log *****
 	# Record the results of every trial as a record in a CSV file 
@@ -211,7 +213,9 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 					break
 			
 			# Find the boundary weaknesses and pressure points
-			weaknesses, ppoints = findWeaknessesAndPressurePoints(G)
+			weaknesses, ppoints = findWeaknessesAndPressurePoints(G, 
+						targetSegment="periphery" if trickleDirection=="down" \
+						else "core")
 			
 			if pngs != "none" or dots != "none":
 				# save resulting graph image to file
@@ -335,7 +339,6 @@ def parseCommandLine():
 	`simulate` runs the simulation
 	`plotstats` takes a case log file (CSV) and produces a graph file (PNG)
 	`plotnetwork` takes a DOT file and produces a network visualization (PNG)
-	
 	"""
 	
 	graphOutputChoices = GRAPH_FILTERS.keys() # from graphsearch module
@@ -356,12 +359,16 @@ def parseCommandLine():
 		make_option("-D", "--dots", 
 					dest="dots", type="choice", choices=graphOutputChoices,
 					default="none", 
-					help="Output networks as .dot files for Graphviz"),
+					help="Output networks as .dot files for Graphviz" \
+					"Possible values are 'all' and 'wpp'. 'wpp' filters "\
+					"so that only graphs with weaknesses and pressure points "\
+					"are generated." ),
 					#action="store_true",
 		make_option("-P", "--pngs",
 					dest="pngs", type="choice", choices=graphOutputChoices,
 					default="none",
-					help="Generate Graphviz visualization of networks."),
+					help="Generate Graphviz visualization of networks." \
+					"Possible values are 'all' and 'wpp'."),
 		# for plotstats and plotnetwork commands:
 		make_option("-i", "--input-file", type="string", dest="inputFile", 
 					help="Input file."),
@@ -371,11 +378,13 @@ def parseCommandLine():
 					help="Base output directory. Default is the current "\
 						 "working directory."),
 	]
-	parser = OptionParser(option_list=optlist)
+	usage = "usage: %prog <command> [options] \n\n"\
+			"Command is one of 'simulate' or 'plotstats'."
+	parser = OptionParser(option_list=optlist, usage=usage)
 	
 	(options, args) = parser.parse_args()
 	
-	assert(len(args)>0 and args[0] in ("simulate", "plotstats", "plotnetwork"))
+	assert(len(args)>0 and args[0] in ("simulate", "plotstats"))
 	assert(options.dots in graphOutputChoices and \
 			options.pngs in graphOutputChoices)
 	

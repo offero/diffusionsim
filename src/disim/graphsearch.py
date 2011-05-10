@@ -101,17 +101,20 @@ class WPPFilter(GraphFilter):
     (count of # occurrences in graph > specified threshold).  
     """
     def __init__(self, weaknessThresh=1, pressurePointThresh=1,
+                 targetSegment='periphery',
                  *args, **kwargs):
         #super(WPPFilter, self).__init__(G)
         self.weaknessThresh=weaknessThresh
         self.pressurePointThresh=pressurePointThresh
+        self.targetSegment=targetSegment
         #self.wpp_cache = {}
         
     def __call__(self, G):
         #if not G in self.wpp_cache:
         #    self.wpp_cache[G] = findWeaknessesAndPressurePoints(G)
         #w,pp = self.wpp_cache[G]
-        w,pp = findWeaknessesAndPressurePoints(G)
+        w,pp = findWeaknessesAndPressurePoints(G, 
+                                            targetSegment=self.targetSegment)
         
         if len(w) >= self.weaknessThresh or \
             len(pp) >= self.pressurePointThresh:
@@ -155,11 +158,6 @@ def findWeaknessesAndPressurePoints(G, proportion=1/2,
     :returns: A tuple of 2 lists, the first list contains the node IDs 
               that were identified as being boundary weaknesses, the
               second contains node ID's of pressure points.
-    
-    .. todo:: 
-        Generalize segments; expand from just 'core':T/F attributes
-        Create a generalized "segment" attribute of which "coreA", "periphA",
-        etc. can be values.
     
     .. todo::
         See if there's a way to automatically determine graph 'dirtyness' for

@@ -56,6 +56,7 @@ of a given agent in the network who have adopted the innovation.
 :math:`P_{k-1}` replaced with :math:`P_{i,k-1}`
 
 :math:`P_{i,k-1}` is the number of neighbors who have adopted / total population
+
 Max bandwagon pressure becomes # neighbors / total population
 
 *"We assume that assessed returns are normally distributed..."* (p. 297).

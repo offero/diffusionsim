@@ -6,7 +6,7 @@ Modules
 Simulation Module
 =================
 
-.. automodule:: disim
+.. automodule:: disim.disim
     :members:
     :undoc-members:
     :inherited-members:
@@ -14,7 +14,7 @@ Simulation Module
 Graph Generation Module
 =======================
 
-.. automodule:: graphgen
+.. automodule:: disim.graphgen
     :members:
     :undoc-members:
     :inherited-members:
@@ -22,7 +22,7 @@ Graph Generation Module
 Graph Search Module
 ===================
 
-.. automodule:: graphsearch
+.. automodule:: disim.graphsearch
     :members:
     :undoc-members:
     :inherited-members:
@@ -30,7 +30,7 @@ Graph Search Module
 Plotting Module
 =======================
 
-.. automodule:: plotting
+.. automodule:: disim.plotting
     :members:
     :undoc-members:
     :inherited-members:
@@ -38,7 +38,7 @@ Plotting Module
 Statistics Module
 =================
 
-.. automodule:: stats
+.. automodule:: disim.stats
     :members:
     :undoc-members:
     :inherited-members:
@@ -46,7 +46,7 @@ Statistics Module
 Data Module
 ===========
 
-.. automodule:: data
+.. automodule:: disim.data
     :members:
     :undoc-members:
     :inherited-members:

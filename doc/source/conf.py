@@ -19,6 +19,7 @@ import sys, os
 #sys.path.insert(0, os.path.abspath('../src'))
 #sys.path.insert(0, '/media/pcrypt1/Documents/GMU/CSS610/Project/disim/src')
 sys.path.insert(0, '/media/pcrypt1/Documents/GMU/CSS610/aptana-workspace/DISim/src')
+#sys.path.insert(0, '/media/pcrypt1/Documents/GMU/CSS610/aptana-workspace/DISim/src/disim')
 
 # -- General configuration -----------------------------------------------------
 
