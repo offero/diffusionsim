@@ -1,4 +1,4 @@
-#Mon May 09 14:29:43 EDT 2011
+#Mon May 09 20:24:37 EDT 2011
 eclipse.preferences.version=1
 encoding//doc/source/conf.py=utf-8
 encoding//src/disim/__init__.py=utf-8
@@ -9,3 +9,5 @@ encoding//src/disim/graphsearch.py=utf-8
 encoding//src/disim/plotting.py=utf-8
 encoding//src/disim/stats.py=utf-8
 encoding//test/test_graphgen.py=utf-8
+encoding//test/test_graphsearch.py=utf-8
+encoding//test/test_stats.py=utf-8

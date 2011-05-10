@@ -17,7 +17,7 @@
 '''
 Created on May 9, 2011
 
-@author: Christopher Kirkos
+:author: Christopher Kirkos
 
 About
 -----
@@ -74,9 +74,6 @@ def createAndTestValidGraph(numCore, numPeriph, pties):
 
 def testGraphGeneration():
     numCoreNodesL = numPeriphNodesL = [1, 2, 10, 100]
-    numSegment1L = [0, 1, 2, 10, 50]
-    numSegment2L = [1, 2, 10, 50]
-    
     ptiesL = [0,1]
     errorCombosNeg1 = permutations([-1,10,10], 3) # -1 in each parameter
     

@@ -27,7 +27,7 @@ from __future__ import division
 import numpy as np
 import scikits.statsmodels as sm
 import numexpr as ne
-from itertools import product
+#from itertools import product
 from os.path import isdir, join as pathjoin
 
 def standardizeCoeff(A, sample=True):
@@ -209,8 +209,11 @@ def possibleTies(numberOfNodes, numCoreNodes):
     :return: Tuple of the number of total possible ties in
              the network, the total possible core ties,
              and the total possible peripheral ties.
+             
+    .. todo:: 
+        Write latex set notation to represent this calculation in the 
+        docs.
     """
-    # TODO: Write latex set notation to represent this calculation in the docs.
     totalPossibleTies = int( (numberOfNodes*(numberOfNodes-1))/2 )
     totalPossibleCoreTies = int( (numCoreNodes*(numCoreNodes-1))/2 )
     totalPossiblePeriphTies = int( totalPossibleTies - totalPossibleCoreTies )
