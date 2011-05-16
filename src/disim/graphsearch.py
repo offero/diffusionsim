@@ -166,7 +166,7 @@ def findWeaknessesAndPressurePoints(G, proportion=1/2,
     """
     # cache the result for multiple calls
     # WARNING: The results become invalid if the graph's edge configuration
-    # changes!
+    # changes OR if the node attributes for I_i and A_i change!
     global WPP_CACHE
     
     cacheKey = (G,proportion,targetSegment)
@@ -185,7 +185,7 @@ def findWeaknessesAndPressurePoints(G, proportion=1/2,
         B_a_i = [n for n in G.neighbors(a_i) if targetSegment not in \
                                                     G.node[n]['segments']]        
         # Detect boundary weakness
-        if len(B_a_i) > 0:            
+        if len(B_a_i) > 0:
             Bc_ik = G.node[a_i]['I'] + (G.node[a_i]['A'] * \
                                         (1/G.number_of_nodes()))
             if Bc_ik > 0: 

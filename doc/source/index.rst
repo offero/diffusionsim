@@ -56,3 +56,20 @@ Source Code (API) Indices
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+Contact
+~~~~~~~
+
+Use the SourceForge forums or send me a message directly...
+
+I'm always up for some collaboration ;)
+
+.. raw:: html
+
+    <a href="http://www.google.com/recaptcha/mailhide/d?k=01wFdLjzV5L17IcZq
+    PL0nguQ==&amp;c=AlBEeouoDPGrYc0DF8Db-Q==" onclick="window.open('http://www.
+    google.com/recaptcha/mailhide/d?k\07501wFdLjzV5L17IcZqPL0nguQ\75\75\46c\75A
+    lBEeouoDPGrYc0DF8Db-Q\75\075', '', 'toolbar=0,scrollbars=0,location=0,statu
+    sbar=0,menubar=0,resizable=0,width=500,height=300'); return false;" title="
+    Reveal this e-mail address">ckir...</a>@gmu.edu
+

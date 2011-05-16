@@ -61,6 +61,7 @@ def minmax(A, newMin=0.0, newMax=1.0):
     return (((A-mn)/(mx-mn))*(newMax-newMin))+newMin
 
 def runOLSRegression1997(expTrialLogFilePath,
+                         trickleDirection = "down",
                          peripheralTieRange = (0,185),
                          densityRange = None,
                          withBoundaryAnalysis=False,
@@ -71,6 +72,11 @@ def runOLSRegression1997(expTrialLogFilePath,
     
     :param str expTrialLogFilePath: The full path to the experiment's trial
                                        log file.
+    :param str trickleDirection: Either "up" or "down". If "up", core diffusion
+                                 is selected as the dependent variable in the
+                                 regression analysis. If "down", peripheral
+                                 diffusion is selected as the dependent 
+                                 variable.
     :param boolean withBoundaryAnalysis: Whether or not to include the boundary
                                          weaknesses and pressure points in the
                                          multiple regression.
@@ -115,29 +121,32 @@ def runOLSRegression1997(expTrialLogFilePath,
         pdensStr = "PDensity{0:.2f}To{1:.2f}-".format(dr[0],dr[1]) if dr else ""
         boundStr = "{0:s}Boundaries".format( "With" if withBoundaryAnalysis \
                                          else "Without" )
-        fname = "Regression-{0:s}{1:s}{2:s}.txt".format(ptiesStr,pdensStr,boundStr)
+        fname = "Regression-{0:s}{1:s}{2:s}.txt".format(ptiesStr,pdensStr,
+                                                        boundStr)
         outFilePath = pathjoin(outFilePath,fname)
         
     # Import trial data from CSV file
     trialLogArray = np.genfromtxt(expTrialLogFilePath, dtype=np.float, 
                                   delimiter=',')
     
+    depIdx = 5 if trickleDirection=="down" else 3
+    diffIndepIdx = 3 if trickleDirection=="down" else 5
+    
     # y is the dependent variable, the number of peripheral adopters
-    y = yorig = trialLogArray[:,5]
+    y = yorig = trialLogArray[:,depIdx]
     
     x1 = trialLogArray[:,1] # Ambiguity
-    #x1 = optimizedMinmax(x1, newMin=-1.0, newMax=0.0) # normalize ambiguity
     
-    x2 = trialLogArray[:,3]/trialLogArray[:,4] # Core diffusion
-    # Core diffusion = core adopters / core nodes
-    #   -> element-wise division on arrays
+    x2 = trialLogArray[:,diffIndepIdx] #/trialLogArray[:,4] # Diffusion
     
     # numexpr optimized version to calculate peripheral density
     x3 = optimizedCalcPeriphDensity(trialLogArray[:,0], trialLogArray[:,4], 
                                     trialLogArray[:,6])
     
-    yname = "Peripheral diffusion"
-    xnames = ["Ambiguity", "Core diff.", "Per. dens."]
+    
+    diffDepStr = "Core" if trickleDirection=="down" else "Peripheral"
+    yname = "%s diffusion" % "Peripheral" if trickleDirection=="down" else "Core"
+    xnames = ["Ambiguity", "%s diff." % diffDepStr, "Per. Dens."]
     
     indep = [x1,x2,x3] # independent variables    
     if withBoundaryAnalysis:

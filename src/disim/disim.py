@@ -269,11 +269,11 @@ def run1997ThresholdModel(trickleDirection="down", numberOfNodes=31,
 	createCoreDiffusionPlot(experimentCaseLog, outFilePath, 
 								coreDiffPlotTitle)
 	
-	fullRegressionAnalysis(outFilePath, expTrialLogOutfile)
+	fullRegressionAnalysis(outFilePath, expTrialLogOutfile, trickleDirection)
 	
 
 
-def fullRegressionAnalysis(outFilePath, expTrialLogOutfile):
+def fullRegressionAnalysis(outFilePath, expTrialLogOutfile, trickleDirection):
 	"""Perform regression analysis on all the identified combinations of values
 	from the [AR1997]_ paper (With/without boundary conditions, all/high/low
 	network densities, full/limited to 185 peripheral ties).
@@ -288,7 +288,8 @@ def fullRegressionAnalysis(outFilePath, expTrialLogOutfile):
 	conditionCombos = product(pTieRanges, densityRanges, boundaryConds)
 	
 	for cond in conditionCombos:
-		runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile), 
+		runOLSRegression1997(pathjoin(outFilePath, expTrialLogOutfile),
+						trickleDirection=trickleDirection,
 						peripheralTieRange = cond[0],
 						densityRange = cond[1],
 						withBoundaryAnalysis=cond[2],

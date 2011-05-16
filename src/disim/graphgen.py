@@ -30,6 +30,7 @@ from stats import possibleTies
 import random
 from random import sample
 import networkx as nx
+import pygraphviz as pgv
 from itertools import combinations, chain
 import pylab
 from pylab import plt
@@ -144,8 +145,8 @@ def generateARCorePeriph(numCoreNodes, numPeriphNodes, pties, show=False):
     
     # Construct initial core network 
     #G = generators.complete_graph(core)
-    # manually generate complete multigraph
-    G = nx.empty_graph(numCoreNodes, create_using=nx.MultiGraph())
+    # manually generate complete graph
+    G = nx.empty_graph(numCoreNodes) # , create_using=nx.MultiGraph()
     G.add_edges_from( combinations(coreNodes,2) )
     for a in G.nodes():
         G.node[a]['segments']=['core']
@@ -213,7 +214,10 @@ def drawAdoptionNetworkGV(G, writeFile=None, writePng=None):
     colorNonAdopted = "firebrick1"
     
     # global default graph attributes
-    gvGraph = nx.to_agraph(G)
+    # gvGraph = nx.to_agraph(G)
+    gvGraph = pgv.AGraph(nx.to_agraph(G),strict=False)  # method 1
+    #A=nx.to_agraph(nx.MultiGraph(G)) # method 2
+    
     gvGraph.graph_attr['splines']="true"
     gvGraph.graph_attr['size']="8,8!"
     gvGraph.graph_attr['outputorder']="edgesfirst" # draw nodes over edges
